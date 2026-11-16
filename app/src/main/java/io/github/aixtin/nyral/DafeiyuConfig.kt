@@ -24,14 +24,15 @@ object DafeiyuConfig {
 
     // ============ 2. 工具白名单 ============
     /**
-     * 仅向模型暴露的 8 个核心工具（其余 20 个不下发、不激活、执行侧也查不到）。
-     * 命名以 LocalEngine.kt:271-298 的 toolRegistry 实测为准（氢气原方案的 web_search / fetch_webpage /
+     * 仅向模型暴露的 7 个核心业务工具（其余 21 个不下发、不激活、执行侧也查不到）。
+     * 命名以 LocalEngine.kt 的 toolRegistry 实测为准（氢气原方案的 web_search / fetch_webpage /
      * read_pdf / read_image / schedule_task / generate_image 是 2026-11-11 合并前的旧名，现已不存在）：
      * - web_search + fetch_webpage -> web（联网三合一 search/fetch/download 同属一个工具）
      * - read_pdf -> pdf_page；read_image -> image_view；schedule_task -> timer_task_create；
-     *   generate_image -> gen_image；tool_detail 不变。
+     *   generate_image -> gen_image。
      * - 第 7 个补 browser：web 的描述本身写明“用户想看页面请改用 browser”，两者是配套的。
-     * - 第 8 个是 memory_search：氢气 Step 4 原方案裁掉，用户 2026-11-16 拍板加回来（保留本地记忆检索）。
+     * - memory_search：氢气 Step 4 原方案裁掉，用户 2026-11-16 拍板加回来（保留本地记忆检索）。
+     * - tool_detail：v2 去掉（白名单过滤后仅 7 个业务工具，Top-N 装载不触发冷门折叠，无冷门工具可激活）。
      * 注意：白名单之外还包括 ask_user / workdir / artifact 等常用工具，
      * 按氢气 Step 4 方案一并裁掉；如需恢复，把名字加回本集合即可。
      */
@@ -42,8 +43,7 @@ object DafeiyuConfig {
         "image_view", // 读取/查看图片
         "timer_task_create", // 定时任务
         "gen_image", // AI 画图
-        "memory_search", // 本地记忆检索
-        "tool_detail" // 动态装载元工具
+        "memory_search" // 本地记忆检索
     )
 
     // ============ 3. Qwen3-27B 去审核版防越权工具调用铁律 ============
@@ -52,11 +52,11 @@ object DafeiyuConfig {
      * 根因是去审核版削弱了拒答倾向，遇缺失工具就拿相似工具顶替。
      */
     const val QWEN3_TOOL_GUARDRAIL = """
-【工具调用边界铁律（必须遵守）】
-1. 只调用与用户意图直接对应的工具：工具列表里没有直接对应的工具时，绝不调用任何工具，直接回答或如实说明做不到。
-2. 严禁使用相似或低维工具替代缺失的高维工具：例如缺视频生成工具时，禁止用画图（gen_image）画一张图来代替视频；
-缺音频工具时禁止用文字描述冒充音频；缺什么就明确说缺什么，不拿相似工具顶替。
-3. 若输出了思考过程，工具调用只在思考闭合之后发出（</think> 闭合标签之后，或『答案:』之后）；思考未闭合时绝不发起工具调用。
+【工具调用铁律】
+1. 严格匹配用户意图，仅在工具列表存在直接对应的功能时才调用工具。
+2. 严禁使用相似或低维工具替代缺失的高维工具（例如：用户要求生成视频、音频或控制手机应用，而工具列表只有图片生成工具时，绝不允许调用 generate_image 代替，必须直接用纯文本向用户说明当前不具备该能力，并询问是否需要替代方案）。
+3. 记忆检索（memory_search）使用边界：仅当用户提及过往约定、个人偏好、历史对话细节，或当前问题依赖历史背景才能准确回答时，才调用 memory_search 查证；对于通用百科知识、编程代码、数学推理及普通日常闲聊，严禁无故调用 memory_search。
+4. 若需调用工具，必须在 </think> 闭合标签之后输出标准调用格式，严禁在思考过程中提前输出工具调用。
 """
 
     // ============ 4. 字面 <think> 标签剥离（非流式兜底） ============
@@ -78,6 +78,11 @@ object DafeiyuConfig {
     }
 
     // ============ 5. 工具 JSON 参数清洗 ============
+    /** "```json" 前缀长度（工具参数围栏头） */
+    private const val JSON_FENCE_PREFIX_LEN = 7
+    /** "```" 围栏长度（工具参数围栏头/尾） */
+    private const val CODE_FENCE_LEN = 3
+
     /**
      * 剥工具参数外层的 ```json / ``` 围栏（去审核版模型常把整段 JSON 包进围栏再交出来）。
      * 仅当围栏内是 JSON 对象时才剥，避免误伤以 ``` 开头的裸文本参数（如代码块正文）。
@@ -85,11 +90,15 @@ object DafeiyuConfig {
     fun sanitizeToolJsonArgs(rawArgs: String): String {
         var s = rawArgs.trim()
         val stripped = when {
-            s.startsWith("```json", ignoreCase = true) -> s.substring(7).trim()
-            s.startsWith("```") -> s.substring(3).trim()
+            s.startsWith("```json", ignoreCase = true) -> s.substring(JSON_FENCE_PREFIX_LEN).trim()
+            s.startsWith("```") -> s.substring(CODE_FENCE_LEN).trim()
             else -> return s
         }
-        val noTail = if (stripped.endsWith("```")) stripped.substring(0, stripped.length - 3).trim() else stripped
+        val noTail = if (stripped.endsWith("```")) {
+            stripped.substring(0, stripped.length - CODE_FENCE_LEN).trim()
+        } else {
+            stripped
+        }
         return if (noTail.startsWith("{")) noTail else s
     }
 
@@ -118,40 +127,60 @@ object DafeiyuConfig {
             tagTail = ""
             val out = StringBuilder()
             while (remaining.isNotEmpty()) {
-                if (!inThink) {
-                    // 游离的孤立闭合标签直接丢弃（模型偶发孤立 </think>，不进正文）
-                    remaining = remaining.replace("</think>", "")
-                    val idx = remaining.indexOf("<think>")
-                    if (idx < 0) {
-                        val hold = trailingTagPrefix(remaining, "<think>")
-                        if (hold > 0) {
-                            tagTail = remaining.takeLast(hold)
-                            remaining = remaining.dropLast(hold)
-                        }
-                        out.append(remaining)
-                        break
-                    }
-                    out.append(remaining.substring(0, idx))
-                    remaining = remaining.substring(idx + "<think>".length)
-                    inThink = true
-                    onThinkStart()
+                remaining = if (!inThink) {
+                    processBodySegment(remaining, out, onThinkStart)
                 } else {
-                    val idx = remaining.indexOf("</think>")
-                    if (idx < 0) {
-                        val hold = trailingTagPrefix(remaining, "</think>")
-                        val thinkPart = remaining.dropLast(hold)
-                        if (hold > 0) tagTail = remaining.takeLast(hold)
-                        if (thinkPart.isNotEmpty()) onThinkDelta(thinkPart)
-                        break
-                    }
-                    val thinkPart = remaining.substring(0, idx)
-                    if (thinkPart.isNotEmpty()) onThinkDelta(thinkPart)
-                    remaining = remaining.substring(idx + "</think>".length)
-                    inThink = false
-                    onThinkEnd()
+                    processThinkSegment(remaining, onThinkDelta, onThinkEnd)
                 }
             }
             return out.toString()
+        }
+
+        /** 处理一段正文（非思考段）：返回处理后剩余文本（空串表示本 chunk 已消费完） */
+        private fun processBodySegment(
+            remaining: String,
+            out: StringBuilder,
+            onThinkStart: () -> Unit
+        ): String {
+            // 游离的孤立闭合标签直接丢弃（模型偶发孤立 </think>，不进正文）
+            val cleaned = remaining.replace("</think>", "")
+            val idx = cleaned.indexOf("<think>")
+            if (idx < 0) {
+                val hold = trailingTagPrefix(cleaned, "<think>")
+                val body = if (hold > 0) {
+                    tagTail = cleaned.takeLast(hold)
+                    cleaned.dropLast(hold)
+                } else {
+                    cleaned
+                }
+                out.append(body)
+                return ""
+            }
+            out.append(cleaned.substring(0, idx))
+            inThink = true
+            onThinkStart()
+            return cleaned.substring(idx + "<think>".length)
+        }
+
+        /** 处理一段思考：返回处理后剩余文本（空串表示本 chunk 已消费完） */
+        private fun processThinkSegment(
+            remaining: String,
+            onThinkDelta: (String) -> Unit,
+            onThinkEnd: () -> Unit
+        ): String {
+            val idx = remaining.indexOf("</think>")
+            if (idx < 0) {
+                val hold = trailingTagPrefix(remaining, "</think>")
+                val thinkPart = remaining.dropLast(hold)
+                if (hold > 0) tagTail = remaining.takeLast(hold)
+                if (thinkPart.isNotEmpty()) onThinkDelta(thinkPart)
+                return ""
+            }
+            val thinkPart = remaining.substring(0, idx)
+            if (thinkPart.isNotEmpty()) onThinkDelta(thinkPart)
+            inThink = false
+            onThinkEnd()
+            return remaining.substring(idx + "</think>".length)
         }
 
         /**
@@ -194,7 +223,10 @@ object DafeiyuConfig {
         if (key.isNotEmpty()) {
             val stored = ApiConfig.providerById(DEFAULT_PROVIDER_ID)?.key.orEmpty()
             if (stored.isBlank()) {
-                ApiConfig.saveProvider(DEFAULT_PROVIDER_ID, DEFAULT_BASE_URL, key, DEFAULT_MODEL_ID, setAsCurrent = false)
+                ApiConfig.saveProvider(
+                    DEFAULT_PROVIDER_ID, DEFAULT_BASE_URL, key, DEFAULT_MODEL_ID,
+                    setAsCurrent = false
+                )
             }
         }
         val prefs = context.getSharedPreferences(API_CONFIG_PREFS, Context.MODE_PRIVATE)

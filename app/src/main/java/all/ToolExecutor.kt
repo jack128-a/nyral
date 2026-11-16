@@ -98,6 +98,10 @@ object ToolExecutor {
         val legacy = LEGACY_TOOL_ACTION[name.trim('_')]
         val n = if (legacy != null) legacy.first
                 else LocalEngine.toolRegistry.firstOrNull { it.name == name }?.name ?: name.trim('_')
+        // 大肥鱼 v2: 白名单硬门禁（最后一道防线）——未下发的工具一律拒绝执行，防模型凭记忆硬猜工具名（如 shell_exec）
+        if (n !in DafeiyuConfig.ALLOWED_TOOLS) {
+            return "{\"error\": \"该工具未启用，仅允许调用已授权工具: ${DafeiyuConfig.ALLOWED_TOOLS.joinToString()}\"}"
+        }
         val arg = if (legacy != null) {
             try {
                 val jo = JSONObject(arg0.trim())
@@ -816,17 +820,16 @@ object ToolExecutor {
 
     internal fun normalizeArgs(name: String, argRaw: String): String {
         // 大肥鱼: 先剥工具参数外层的 ```json / ``` 围栏（去审核版模型常把整段 JSON 包进围栏），再进原有归一逻辑；
-        // sanitize 只在围栏内是 JSON 对象时才剥，裸文本参数不受影响
-        val t = DafeiyuConfig.sanitizeToolJsonArgs(argRaw)
-        if (!t.startsWith("{")) return t  // 已是裸字符串(文本协议兜底路径)
-        val json = try { JSONObject(t) } catch (e: Exception) { return t }
+        // sanitize 只在围栏内是 JSON 对象时才剥，裸文本参数不受影响；非 JSON 裸字符串由下方 try/catch 原样回退
+        val input = DafeiyuConfig.sanitizeToolJsonArgs(argRaw)
+        val json = try { JSONObject(input) } catch (e: Exception) { return input }
         return when (name) {
-            "calc" -> json.optString("expr").takeIf { it.isNotBlank() } ?: t
-            "memory_search" -> json.optString("query").takeIf { it.isNotBlank() } ?: t
+            "calc" -> json.optString("expr").takeIf { it.isNotBlank() } ?: input
+            "memory_search" -> json.optString("query").takeIf { it.isNotBlank() } ?: input
             "ssh_run" -> {
                 // 2026-11-11: add_config 等结构化动作不做裸串抽取(否则 name/host 会被当成命令)
                 val actTag = json.optString("action", "").trim()
-                if (actTag.isNotEmpty() && actTag != "exec") return t
+                if (actTag.isNotEmpty() && actTag != "exec") return input
                 val cmd = json.optString("command").takeIf { it.isNotBlank() }
                 if (cmd != null) cmd else {
                     // 兼容传 conn+cmd 拆分写法
@@ -834,11 +837,11 @@ object ToolExecutor {
                     val c = json.optString("cmd").takeIf { it.isNotBlank() }
                     when {
                         conn != null && c != null -> "$conn:$c"
-                        else -> t
+                        else -> input
                     }
                 }
             }
-            else -> t
+            else -> input
         }
     }
 

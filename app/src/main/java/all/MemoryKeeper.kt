@@ -57,9 +57,11 @@ object MemoryKeeper {
     /** 主对话每轮消息实时入队(落盘, 不阻塞) */
     fun push(role: String, content: String, sessionId: Long? = null, msgNo: Int? = null) {
         if (!::db.isInitialized) return
-        db.addPending(role, content, sessionId, msgNo)
+        // 大肥鱼 v2: 入库入口最后一道防线——剥离残留 <think> 再存（onDone 已剥过一次，这里防错误路径/流式残留污染向量库；幂等）
+        val clean = DafeiyuConfig.stripLiteralThinkTags(content)
+        db.addPending(role, clean, sessionId, msgNo)
         // 用户明确表达"记住"意图时立即归档, 不等攒够阈值/空闲超时
-        maybeArchive(force = role == "user" && content.contains("记住"))
+        maybeArchive(force = role == "user" && clean.contains("记住"))
     }
 
     /** 触发条件: 攒够阈值 或 会话空闲超时(force=true 则跳过门槛直接归档) -> 丢后台线程, 立即返回 */

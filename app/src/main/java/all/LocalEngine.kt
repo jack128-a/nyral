@@ -296,8 +296,8 @@ object LocalEngine {
         ToolSpec("artifact", "产物登记通道(2026-11-11 合并 artifact_save/artifact_save_bin): kind=text 交付纯文本成品(代码/HTML/SVG/Markdown/PDF源码), kind=binary 交付二进制成品(图片/音频/视频/压缩包, data 为 Base64 且解码后不超过 512KB)。成品全文不要直接贴在回复里。必须调用场景: 用户要完整代码文件/可运行的HTML网页/成品文档/SVG, 或连续代码超过30行, 或要求保存/导出/交付文件。不要滥用: 简短代码片段/解释性示例/纯思路讨论不登记。content 与 data 二选一(kind=text 用 content, kind=binary 用 data); content 必须是产物文件本身正文, 不要把工具调用指令/JSON包装/解释文字混进 content。同名再登记自动覆盖升版, 历史卡片展示最新版。登记成功后必须立即在回复中单独一行原样输出 [产物:文件名](att://返回的引用) 展示卡片, 不要重复贴全文", "JSON: {\"name\":\"产物文件名(带扩展名)\",\"kind\":\"text|binary\",\"content\":\"kind=text 的正文\",\"data\":\"kind=binary 的Base64\"}"),
 ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校验): 用户要求\"定时/每天/循环/自动执行某任务\"时调用, 需用户当面确认才生效。参数: name 任务名, goal 任务目标(要 AI 做什么), cron 触发时间(格式 \"每天 HH:mm\" 如 \"每天 09:00\"), allow_tools 危险工具授权清单(数组, 每项 {\"key\":工具key,\"reason\":具体用途})。硬性要求: 1) 先分析 goal 判断完成任务真正需要哪些危险工具, 只申请必需项, 严禁过度打包; 2) 每个授权项必须写清具体用途 reason(如 workdir:write -> \"写入早报文件 Download/Nyral_work/xxx.txt\"), 禁止空话(如\"需要执行命令\"); 3) 用户批准后任务才创建并预授权, 拒绝则零残留; 4) 任务执行后若发现还需其它工具, 不要直接静默使用, 返回提示用户补充授权。", "JSON: {\"name\":\"每日早报\",\"goal\":\"每天早上整理新闻早报\",\"cron\":\"每天 09:00\",\"allow_tools\":[{\"key\":\"workdir:write\",\"reason\":\"把整理好的早报写入工作目录 Download/Nyral_work/morning_report.txt\"}]}"),
         ToolSpec("gen_image", "AI 生图(2026-11-04, 成本门禁, 多厂商契约驱动): 根据画面描述生成图片, 产物自动落盘并作为图片卡片回显。当前可用厂商、模型与额度元信息由本机配置动态注入。用户明确要求\"画一张/生成图片/配图/封面/示意图/插图\"时调用; 每次调用需用户确认, 且受月度限额保护。", "JSON: {\"prompt\":\"画面描述(必填, 尽量详细: 主体/风格/构图/光线)\",\"size\":\"图片尺寸(默认 1024*1024, 长*宽)\",\"n\":\"本次生成张数 1~4(默认 1, 计入月度限额)\",\"provider\":\"可选: 指定厂商显示名(如 通义万相/腾讯混元), 不填走默认\"}")
-    ).filter { it.name in DafeiyuConfig.ALLOWED_TOOLS } // 大肥鱼: 白名单过滤——仅向模型暴露 ALLOWED_TOOLS 的 7 个核心工具；
-    // 其余 21 个不下发（buildToolsArray）、不激活（tool_detail 查不到）、执行侧也查不到（ToolExecutor 以注册表为准）；
+    )
+    // 大肥鱼 v2: 注册表恢复全量 28 个工具（单测按全量断言）；白名单改在 buildToolsArray 下发处 + ToolExecutor 执行入口两处拦。
     // 原版 SshTools/ShellTools/AccessibilityTools 等实现文件不动，合上游零冲突
 
     /**
@@ -327,7 +327,7 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
         "security_set" to "信任SSH主机密钥(ssh_trust); 门禁档位/root补权仅用户UI可改, 模型调用会被拒绝",
         "timer_task_create" to "创建定时岗位任务(name/goal/cron + 危险工具授权清单[每项必须给具体用途]), 需用户确认, 拒绝零残留",
         "gen_image" to "AI 生图(多厂商契约驱动, 按张计费, 每次需确认+月度限额): 根据画面描述生成图片并落盘回显"
-    ).filterKeys { it in DafeiyuConfig.ALLOWED_TOOLS } // 大肥鱼: 系统提示词里的工具索引与注册表同款白名单过滤，否则模型会看到已裁工具并试图用 tool_detail 激活
+    ) // 大肥鱼 v2: 工具索引与全量注册表一致（不单独过滤）；下发给模型的 tools 列表由 buildToolsArray 按白名单过滤
 
     // ===== Top N 动态装载(2026-09-16): 白名单+热度常驻, 冷门工具经 tool_detail 按需激活 =====
     private const val TOOL_DETAIL = "tool_detail"
@@ -477,7 +477,9 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
         val arr = JSONArray()
         val hot = ToolHotStore.load(context)
         // 能力域过滤(2026-10-30 P3): 体检会话只读 → 只下发只读工具; 特权工具任何域都不下发
-        val visibleRegistry = toolRegistry.filter { CapabilityScope.allows(it.name, it.zone) }
+        // 大肥鱼 v2: 白名单拦截点——只向模型下发 ALLOWED_TOOLS（注册表本身保持全量 28 个，供单测/工具详情查询）
+        val exposedTools = toolRegistry.filter { it.name in DafeiyuConfig.ALLOWED_TOOLS }
+        val visibleRegistry = exposedTools.filter { CapabilityScope.allows(it.name, it.zone) }
         val ordered = if (hot.isEmpty()) visibleRegistry else visibleRegistry.sortedWith(
             compareByDescending<ToolSpec> { hot[it.name]?.count ?: 0 }
                 .thenByDescending { hot[it.name]?.lastTs ?: 0L }

@@ -36,6 +36,18 @@ object WebTools {
     // Bing 搜索用桌面 UA: 移动 UA 下 cn.bing.com 返回非标准结构, 无法解析
     private val SEARCH_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
+    // 大肥鱼 Tavily: 超时/数量/分数/字符预算（detekt 魔法数字抽常量）
+    private const val TAVILY_CONNECT_TIMEOUT_MS = 6000
+    private const val TAVILY_READ_TIMEOUT_MS = 10000
+    private const val TAVILY_MAX_RESULTS = 5
+    private const val TAVILY_MIN_SCORE = 0.45
+    private const val TAVILY_TOP_BUDGET = 1200
+    private const val TAVILY_SUB_BUDGET = 450
+    private const val TAVILY_TOP_COUNT = 2
+    private const val TAVILY_MAX_VALID = 4
+    private const val HTTP_OK_START = 200
+    private const val HTTP_OK_END = 299
+
     /**
      * 参数: {"q":"搜索关键词","max_results":5}
      * 返回: 多引擎网页搜索结果(标题+链接+摘要), 最多 max_results 条。
@@ -55,17 +67,24 @@ object WebTools {
     fun search(context: Context, arg: String): String {
         val json = try { JSONObject(arg) } catch (e: Exception) { null }
         val query = json?.optString("q")?.takeIf { it.isNotBlank() } ?: arg.trim()
-        val maxResults = (json?.optInt("max_results", 5) ?: 5).coerceIn(1, 10)
-        if (query.isBlank()) return "错误: 搜索关键词为空"
-        if (query.length > 200) return "错误: 关键词过长"
+        val maxResults = (json?.optInt("max_results", TAVILY_MAX_RESULTS) ?: TAVILY_MAX_RESULTS).coerceIn(1, 10)
+        val result = when {
+            query.isBlank() -> "错误: 搜索关键词为空"
+            query.length > 200 -> "错误: 关键词过长"
+            else -> {
+                val nowMs = System.currentTimeMillis()
+                searchStreak = if (nowMs - lastSearchAt in 1..180000L) searchStreak + 1 else 1
+                lastSearchAt = nowMs
+                // 大肥鱼: 有 Tavily Key 时优先走 Tavily（高密度摘要）；无 Key 或请求失败时回退原有 HTML 链路
+                searchViaTavily(context, query, maxResults)?.let { it + streakHint() }
+                    ?: searchHtmlEngines(query, maxResults)
+            }
+        }
+        return result
+    }
 
-        val nowMs = System.currentTimeMillis()
-        searchStreak = if (nowMs - lastSearchAt in 1..180000L) searchStreak + 1 else 1
-        lastSearchAt = nowMs
-
-        // 大肥鱼: 有 Tavily Key 时优先走 Tavily（高密度摘要）；无 Key 或请求失败时回退原有 HTML 链路
-        searchViaTavily(context, query, maxResults)?.let { return it + streakHint() }
-
+    /** 原有 HTML 链路（搜狗 -> 必应RSS -> 必应网页 -> 百度），单个引擎空结果/被反爬时自动切换下一个 */
+    private fun searchHtmlEngines(query: String, maxResults: Int): String {
         val attempts = listOf(
             "搜狗移动端" to { sogouSearch(query) },
             "必应RSS" to { bingRssSearch(query) },
@@ -73,15 +92,17 @@ object WebTools {
             "百度" to { baiduSearch(query) },
         )
         val failures = mutableListOf<String>()
+        var found: String? = null
         for ((name, fn) in attempts) {
             val hits = try { fn() } catch (e: Exception) { emptyList<SearchHit>() }
             val effective = hits.take(maxResults)
             if (effective.isNotEmpty()) {
-                return formatSearchResults("搜索结果来源:【$name】", effective) + streakHint()
+                found = formatSearchResults("搜索结果来源:【$name】", effective) + streakHint()
+                break
             }
             failures += name
         }
-        return "未找到搜索结果(已依次尝试: ${failures.joinToString("→")}, 均为空或被拦截)。" +
+        return found ?: "未找到搜索结果(已依次尝试: ${failures.joinToString("→")}, 均为空或被拦截)。" +
                 "\n建议换更精确的关键词重试, 或直接 web(action=fetch) 访问百度百科/豆瓣/猫眼等已知站点。" + streakHint()
     }
 
@@ -92,39 +113,83 @@ object WebTools {
      */
     private fun searchViaTavily(context: Context, query: String, maxResults: Int): String? {
         val key = DafeiyuConfig.tavilyKey(context)
-        if (key.isEmpty()) return null
+        val raw = postTavilySearch(key, query, maxResults)
+        val hits = parseTavilyHits(raw, maxResults)
+        return if (hits.isEmpty()) null else formatTavilyResults("搜索结果来源:【Tavily】", hits)
+    }
+
+    /** 发 Tavily POST 请求，返回原始 JSON 串；无 Key / 非 2xx / 异常时返回 null */
+    private fun postTavilySearch(key: String, query: String, maxResults: Int): String? {
         var conn: HttpURLConnection? = null
-        return try {
-            conn = URL("https://api.tavily.com/search").openConnection() as HttpURLConnection
-            conn.requestMethod = "POST"
-            conn.connectTimeout = CONNECT_TIMEOUT
-            conn.readTimeout = READ_TIMEOUT
-            conn.doOutput = true
-            conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
-            val payload = JSONObject()
-                .put("api_key", key)
-                .put("query", query)
-                .put("search_depth", "advanced")
-                .put("max_results", maxResults)
-                .put("include_answer", false)
-            conn.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
-            if (conn.responseCode !in 200..299) return null
-            val raw = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-            val arr = JSONObject(raw).optJSONArray("results") ?: return null
-            val hits = ArrayList<SearchHit>()
-            for (i in 0 until arr.length()) {
-                val item = arr.optJSONObject(i) ?: continue
-                val title = item.optString("title", "")
-                val link = item.optString("url", "")
-                val snippet = item.optString("content", "")
-                if (link.isNotEmpty() && snippet.isNotEmpty()) hits.add(SearchHit(title, link, snippet))
+        val raw: String? = try {
+            if (key.isEmpty()) {
+                null
+            } else {
+                conn = URL("https://api.tavily.com/search").openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.connectTimeout = TAVILY_CONNECT_TIMEOUT_MS
+                conn.readTimeout = TAVILY_READ_TIMEOUT_MS
+                conn.doOutput = true
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+                val payload = JSONObject()
+                    .put("api_key", key)
+                    .put("query", query)
+                    .put("search_depth", "advanced")
+                    .put("max_results", maxResults)
+                    .put("include_answer", false)
+                conn.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
+                if (conn.responseCode in HTTP_OK_START..HTTP_OK_END) {
+                    conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                } else {
+                    null
+                }
             }
-            if (hits.isEmpty()) null else formatSearchResults("搜索结果来源:【Tavily】", hits.take(maxResults))
         } catch (e: Exception) {
             null
         } finally {
             try { conn?.disconnect() } catch (_: Exception) {}
         }
+        return raw
+    }
+
+    /** 解析 Tavily results：按分数过滤（score >= 0.45），只要 title/url/content 齐全的条目 */
+    private fun parseTavilyHits(raw: String?, maxResults: Int): List<SearchHit> {
+        val arr = try {
+            raw?.let { JSONObject(it).optJSONArray("results") }
+        } catch (e: Exception) {
+            null
+        }
+        val hits = ArrayList<SearchHit>()
+        if (arr != null) {
+            for (i in 0 until arr.length()) {
+                val item = arr.optJSONObject(i) ?: continue
+                val title = item.optString("title", "")
+                val link = item.optString("url", "")
+                val snippet = item.optString("content", "")
+                val score = item.optDouble("score", 1.0)
+                if (link.isNotEmpty() && snippet.isNotEmpty() && score >= TAVILY_MIN_SCORE) {
+                    hits.add(SearchHit(title, link, snippet))
+                }
+            }
+        }
+        return hits.take(maxResults)
+    }
+
+    /** Tavily 结果格式化：前 TAVILY_TOP_COUNT 条取大预算，其余取小预算；最多 TAVILY_MAX_VALID 条 */
+    private fun formatTavilyResults(tag: String, hits: List<SearchHit>): String {
+        val valid = hits.take(TAVILY_MAX_VALID)
+        val sb = StringBuilder(tag)
+        valid.forEachIndexed { i, h ->
+            val budget = if (i < TAVILY_TOP_COUNT) TAVILY_TOP_BUDGET else TAVILY_SUB_BUDGET
+            sb.append(formatSingleTavilyItem(i, h, budget))
+        }
+        return sb.toString().trim()
+    }
+
+    /** 单条 Tavily 结果：摘要超预算时截断并加省略号 */
+    private fun formatSingleTavilyItem(index: Int, hit: SearchHit, budget: Int): String {
+        val snippet = if (hit.snippet.length > budget) hit.snippet.take(budget) + "…" else hit.snippet
+        return "\n${index + 1}. ${hit.title}\n   ${hit.link}\n   ${if (snippet.isEmpty()) "(无摘要)" else snippet}"
     }
 
     private data class SearchHit(val title: String, val link: String, val snippet: String)

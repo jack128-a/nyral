@@ -36,6 +36,10 @@ object MemoryTools {
     private val NUMERIC_ONLY = Regex("[0-9+\\-*/().\\s]+")
     private val WHITESPACE = Regex("\\s+")
     private const val MAX_EXPR_CHARS = 1500
+    /** 大肥鱼 v2: 记忆检索单次最多返回条数（防两路检索叠加挤压思考链空间） */
+    private const val MAX_MEMORY_RESULTS = 4
+    /** 大肥鱼 v2: 记忆检索单次返回总字符上限 */
+    private const val MAX_MEMORY_CHARS = 1500
     fun calc(expr: String): String {
         // 简化求值, 仅支持数字和四则运算
         val cleaned = expr.replace("×", "*").replace("÷", "/").replace("x", "*")
@@ -95,13 +99,15 @@ object MemoryTools {
 
             if (merged.isEmpty()) return "记忆中暂无相关内容。"
             // 冲突消解: 同主题多条记忆按时间新->旧注入, 并提示采用最新版本、旧版未覆盖细节仍有效
-            val ordered = merged.sortedByDescending { it.ts }
+            // 大肥鱼 v2: 单次最多返回 MAX_MEMORY_RESULTS 条、总字符 ≤ MAX_MEMORY_CHARS（防记忆+联网两路检索叠加挤压思考链空间）
+            val ordered = merged.sortedByDescending { it.ts }.take(MAX_MEMORY_RESULTS)
             val df = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
             val sb = StringBuilder("相关记忆(多条相似记忆以时间最新为准, 旧版中未被新版覆盖的细节仍有效, 按时间新->旧):\n")
             ordered.forEachIndexed { i, mem ->
                 sb.append("${i + 1}. [${df.format(Date(mem.ts))}] ${mem.content}\n")
             }
-            sb.toString().trim()
+            val out = sb.toString().trim()
+            if (out.length > MAX_MEMORY_CHARS) out.take(MAX_MEMORY_CHARS) + "\n[记忆内容过长已截断]" else out
         } catch (e: Exception) {
             "记忆检索失败: ${e.message}"
         }

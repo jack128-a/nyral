@@ -169,7 +169,12 @@ object ApiConfig {
         Provider("zhipu", "Zhipu GLM", "https://open.bigmodel.cn/api/paas/v4", "glm-5.3"),
         Provider("mimo", "Xiaomi MiMo", "https://api.xiaomimimo.com/v1", "mimo-v2.6-pro"),
         // 大肥鱼: 默认自建端点（base/model 取自 DafeiyuConfig，Key 不进预设，走首次启动种子加密写入）
-        Provider(DafeiyuConfig.DEFAULT_PROVIDER_ID, DafeiyuConfig.DEFAULT_PROVIDER_NAME, DafeiyuConfig.DEFAULT_BASE_URL, DafeiyuConfig.DEFAULT_MODEL_ID),
+        Provider(
+            DafeiyuConfig.DEFAULT_PROVIDER_ID,
+            DafeiyuConfig.DEFAULT_PROVIDER_NAME,
+            DafeiyuConfig.DEFAULT_BASE_URL,
+            DafeiyuConfig.DEFAULT_MODEL_ID
+        ),
     )
 
     // ============ Provider 列表持久化 ============
