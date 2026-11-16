@@ -13,9 +13,9 @@ object CrashReportConfig {
     private const val PREFS = "crash_report_config"
     private const val KEY_ENABLED = "enabled"
 
-    /** 是否开启崩溃上报(默认开启) */
+    /** 是否开启崩溃上报(大肥鱼 fork 默认关闭：不向作者服务器上传任何数据；用户可在设置里手动打开) */
     fun enabled(ctx: Context): Boolean =
-        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_ENABLED, true)
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_ENABLED, false)
 
     /** 设置崩溃上报开关 */
     fun setEnabled(ctx: Context, on: Boolean) {

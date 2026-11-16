@@ -581,8 +581,9 @@ internal fun applyBottomOcclusion(drawerH: Int) {
         SecurityUi.onQueueChanged = { list ->
             chatRec?.post { syncSecurityRows(list) }
         }
-        // 自动检查更新：启动首次立即查，之后 6 小时节流；命中新版本走 Toast 轻提示
-        UpdateChecker.checkIfDue(this)
+        // 大肥鱼: 自动检查更新已关闭（fork 的 CI 产出的是 Actions artifacts 而非 GitHub Releases，
+        // 原检查会指向 aixtin/nyral 上游并提示下载原版 APK；更新改由 agent 发 APK）
+        // UpdateChecker.checkIfDue(this)
         // 键盘模式: 全局 adjustNothing, 窗口永不被键盘压缩;
         // 通过 WindowInsets.ime()(API30+) 精确取键盘高度, 手动驱动 bodyWrap 平移上移(同微信),
         // 标题栏与背景(挂 root.background)不动。adjustResize 下窗口被系统压缩, ime insets 会被吸收为0无法检测
@@ -1989,8 +1990,8 @@ internal fun applyBottomOcclusion(drawerH: Int) {
 
     override fun onResume() {
         super.onResume()
-        // 回前台热检测: 距上次检查超 6 小时才真请求, 并启动前台轮询覆长时间驻留不切后台的场景
-        UpdateChecker.startForegroundPolling(this)
+        // 大肥鱼: 前台轮询更新已关闭（同上，见 onCreate 处的说明）
+        // UpdateChecker.startForegroundPolling(this)
         // 首启权限引导: 从特殊权限设置页返回后推进到下一项
         if (firstRunGuideState in 2..4) {
             firstRunGuideState = 0

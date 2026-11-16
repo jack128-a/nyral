@@ -52,7 +52,7 @@ object WebTools {
             "请立即停止继续检索, 基于已有信息作答或如实说明未找到; 不要再换关键词重复搜索。"
     }
 
-    fun search(arg: String): String {
+    fun search(context: Context, arg: String): String {
         val json = try { JSONObject(arg) } catch (e: Exception) { null }
         val query = json?.optString("q")?.takeIf { it.isNotBlank() } ?: arg.trim()
         val maxResults = (json?.optInt("max_results", 5) ?: 5).coerceIn(1, 10)
@@ -62,6 +62,9 @@ object WebTools {
         val nowMs = System.currentTimeMillis()
         searchStreak = if (nowMs - lastSearchAt in 1..180000L) searchStreak + 1 else 1
         lastSearchAt = nowMs
+
+        // 大肥鱼: 有 Tavily Key 时优先走 Tavily（高密度摘要）；无 Key 或请求失败时回退原有 HTML 链路
+        searchViaTavily(context, query, maxResults)?.let { return it + streakHint() }
 
         val attempts = listOf(
             "搜狗移动端" to { sogouSearch(query) },
@@ -80,6 +83,48 @@ object WebTools {
         }
         return "未找到搜索结果(已依次尝试: ${failures.joinToString("→")}, 均为空或被拦截)。" +
                 "\n建议换更精确的关键词重试, 或直接 web(action=fetch) 访问百度百科/豆瓣/猫眼等已知站点。" + streakHint()
+    }
+
+    /**
+     * 大肥鱼: Tavily 搜索（POST api.tavily.com/search，search_depth=advanced；请求格式与 v2.6.0 的 WebSearchEngine 一致，已实测）。
+     * Key 优先用户在设置里保存的，其次 BuildConfig 注入（见 DafeiyuConfig.tavilyKey）。
+     * 成功返回与原有链路同格式的结果串；无 Key / 网络异常 / 空结果时返回 null，调用方回退原有链路。
+     */
+    private fun searchViaTavily(context: Context, query: String, maxResults: Int): String? {
+        val key = DafeiyuConfig.tavilyKey(context)
+        if (key.isEmpty()) return null
+        var conn: HttpURLConnection? = null
+        return try {
+            conn = URL("https://api.tavily.com/search").openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.connectTimeout = CONNECT_TIMEOUT
+            conn.readTimeout = READ_TIMEOUT
+            conn.doOutput = true
+            conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+            val payload = JSONObject()
+                .put("api_key", key)
+                .put("query", query)
+                .put("search_depth", "advanced")
+                .put("max_results", maxResults)
+                .put("include_answer", false)
+            conn.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
+            if (conn.responseCode !in 200..299) return null
+            val raw = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+            val arr = JSONObject(raw).optJSONArray("results") ?: return null
+            val hits = ArrayList<SearchHit>()
+            for (i in 0 until arr.length()) {
+                val item = arr.optJSONObject(i) ?: continue
+                val title = item.optString("title", "")
+                val link = item.optString("url", "")
+                val snippet = item.optString("content", "")
+                if (link.isNotEmpty() && snippet.isNotEmpty()) hits.add(SearchHit(title, link, snippet))
+            }
+            if (hits.isEmpty()) null else formatSearchResults("搜索结果来源:【Tavily】", hits.take(maxResults))
+        } catch (e: Exception) {
+            null
+        } finally {
+            try { conn?.disconnect() } catch (_: Exception) {}
+        }
     }
 
     private data class SearchHit(val title: String, val link: String, val snippet: String)

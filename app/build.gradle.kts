@@ -32,7 +32,9 @@ android {
     }
 
     defaultConfig {
-        applicationId = "io.github.aixtin.nyral"
+        // 大肥鱼: 应用唯一身份改 com.xgg.dafeiyu（与原版共存、数据隔离）；namespace 保持原值不动，
+        // 源码包名与 R 引用一行都不用改
+        applicationId = "com.xgg.dafeiyu"
         minSdk = 29
         targetSdk = 36
         versionCode = 145
@@ -49,6 +51,26 @@ android {
             logger.warn("crashToken 仍是占位符 local-dev-placeholder — 本包崩溃上报会全部 401 被拒")
         }
         buildConfigField("String", "CRASH_TOKEN", "\"" + crashToken + "\"")
+        // 大肥鱼: 默认端点与 Key 注入——环境变量优先，local.properties 兜底（与 crashToken 同款），均为空时为空串；
+        // 真实地址与 Key 绝不写进源码（公开 fork），CI 由 GitHub Secrets 注入
+        val localProps = Properties().apply {
+            if (crashProps.exists()) crashProps.inputStream().use { load(it) }
+        }
+        val envOrProp: (String, String) -> String = { envName, propName ->
+            System.getenv(envName)?.takeIf { it.isNotBlank() } ?: localProps.getProperty(propName, "")
+        }
+        val buildConfigStr: (String) -> String = { value ->
+            "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+        }
+        val dafeiyuApiKey = envOrProp("DAFEIYU_API_KEY", "dafeiyuApiKey")
+        val tavilyApiKey = envOrProp("TAVILY_API_KEY", "tavilyApiKey")
+        val dafeiyuBaseUrl = envOrProp("DAFEIYU_BASE_URL", "dafeiyuBaseUrl")
+        if (dafeiyuApiKey.isEmpty()) {
+            logger.warn("DAFEIYU_API_KEY missing — 大肥鱼默认供应商将无 Key，需用户在设置页手动粘贴")
+        }
+        buildConfigField("String", "DAFEIYU_API_KEY", buildConfigStr(dafeiyuApiKey))
+        buildConfigField("String", "TAVILY_API_KEY", buildConfigStr(tavilyApiKey))
+        buildConfigField("String", "DAFEIYU_BASE_URL", buildConfigStr(dafeiyuBaseUrl))
         ndk {
             abiFilters += listOf(project.findProperty("nyralAbi") as String? ?: "arm64-v8a")
         }

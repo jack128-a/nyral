@@ -268,7 +268,7 @@ object LocalEngine {
     }
 
     internal val toolRegistry = listOf(
-        ToolSpec("web", "联网三合一(2026-11-11 合并 web_search/web_fetch/web_download): action=search 后台静默联网搜索(Bing), 结果仅供AI参考阅读, 用户看不到页面(用户想看搜索结果页/网页请改用 browser(action=open)); action=fetch 抓取网页并提取正文文本, site_auth.json 已配置该域名 Cookie 会自动注入; action=download 下载网页/文件并保存到手机工作目录 下载/ 子目录, 返回\"下载成功\"即表示已落盘, 直接向用户报告结果, 不要再调 workdir 重复验证", "JSON: {\"action\":\"search|fetch|download\",\"q\":\"搜索关键词(action=search)\",\"url\":\"https://...(action=fetch|download)\",\"max_results\":5,\"max_chars\":3000,\"name\":\"可选文件名(action=download)\"}"),
+        ToolSpec("web", "联网三合一(2026-11-11 合并 web_search/web_fetch/web_download): action=search 后台静默联网搜索(Tavily), 结果仅供AI参考阅读, 用户看不到页面(用户想看搜索结果页/网页请改用 browser(action=open)); action=fetch 抓取网页并提取正文文本, site_auth.json 已配置该域名 Cookie 会自动注入; action=download 下载网页/文件并保存到手机工作目录 下载/ 子目录, 返回\"下载成功\"即表示已落盘, 直接向用户报告结果, 不要再调 workdir 重复验证", "JSON: {\"action\":\"search|fetch|download\",\"q\":\"搜索关键词(action=search)\",\"url\":\"https://...(action=fetch|download)\",\"max_results\":5,\"max_chars\":3000,\"name\":\"可选文件名(action=download)\"}"),
         ToolSpec("browser", "全屏浏览器控制(在用户手机上打开可见浏览器页): action=open 打开URL/搜索词(用户要求搜索/查资料/看网页时优先用), scan 读可操作元素清单(带索引), text 读整页文字, scroll 滚动(delta 像素正下负上), click 点击第N元素(index), type 向输入框输入文本(index+text), upload 上传工作目录文件到文件选择框(index+local), clear_cache 清缓存刷新(full=true 连登录Cookie一起清), save_cookies 把当前登录Cookie存入site_auth(site 可选域名)。页面遇验证码/登录墙时提示用户点\"接管\"手动完成。", "JSON: {\"action\":\"open|scan|text|scroll|click|type|upload|clear_cache|save_cookies\",...}"),
         ToolSpec("app", "第三方App控制(需先授权无障碍): action=scan 扫描当前屏幕可操作元素清单(带索引, 空树返回EMPTY_TREE标记), click 点击第N元素(index), text 向输入框输入文本(index+text), tap 坐标注入点击(x+y, 视觉兜底用), screenshot 截当前屏保存工作目录返回路径(视觉兜底用), back 模拟返回键, home 回桌面, launch 按包名启动App(pkg), installed 列出已安装第三方应用", "JSON: {\"action\":\"scan|click|text|tap|screenshot|back|home|launch|installed\",...}"),
         ToolSpec("workdir", "手机工作目录(Download/Nyral_work)文件操作: action=list 列文件, read 读文本文件(name), write 写文件(name+content, 同名覆盖, name 必须带真实扩展名如 早报.md, 不要额外再叠加 .txt), grep 全文搜索(kw, 可选ext扩展名过滤/case大小写), head 读前N行或N字符(name+lines或chars), stats 统计概览", "JSON: {\"action\":\"list|read|write|grep|head|stats\",...}"),
@@ -296,7 +296,9 @@ object LocalEngine {
         ToolSpec("artifact", "产物登记通道(2026-11-11 合并 artifact_save/artifact_save_bin): kind=text 交付纯文本成品(代码/HTML/SVG/Markdown/PDF源码), kind=binary 交付二进制成品(图片/音频/视频/压缩包, data 为 Base64 且解码后不超过 512KB)。成品全文不要直接贴在回复里。必须调用场景: 用户要完整代码文件/可运行的HTML网页/成品文档/SVG, 或连续代码超过30行, 或要求保存/导出/交付文件。不要滥用: 简短代码片段/解释性示例/纯思路讨论不登记。content 与 data 二选一(kind=text 用 content, kind=binary 用 data); content 必须是产物文件本身正文, 不要把工具调用指令/JSON包装/解释文字混进 content。同名再登记自动覆盖升版, 历史卡片展示最新版。登记成功后必须立即在回复中单独一行原样输出 [产物:文件名](att://返回的引用) 展示卡片, 不要重复贴全文", "JSON: {\"name\":\"产物文件名(带扩展名)\",\"kind\":\"text|binary\",\"content\":\"kind=text 的正文\",\"data\":\"kind=binary 的Base64\"}"),
 ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校验): 用户要求\"定时/每天/循环/自动执行某任务\"时调用, 需用户当面确认才生效。参数: name 任务名, goal 任务目标(要 AI 做什么), cron 触发时间(格式 \"每天 HH:mm\" 如 \"每天 09:00\"), allow_tools 危险工具授权清单(数组, 每项 {\"key\":工具key,\"reason\":具体用途})。硬性要求: 1) 先分析 goal 判断完成任务真正需要哪些危险工具, 只申请必需项, 严禁过度打包; 2) 每个授权项必须写清具体用途 reason(如 workdir:write -> \"写入早报文件 Download/Nyral_work/xxx.txt\"), 禁止空话(如\"需要执行命令\"); 3) 用户批准后任务才创建并预授权, 拒绝则零残留; 4) 任务执行后若发现还需其它工具, 不要直接静默使用, 返回提示用户补充授权。", "JSON: {\"name\":\"每日早报\",\"goal\":\"每天早上整理新闻早报\",\"cron\":\"每天 09:00\",\"allow_tools\":[{\"key\":\"workdir:write\",\"reason\":\"把整理好的早报写入工作目录 Download/Nyral_work/morning_report.txt\"}]}"),
         ToolSpec("gen_image", "AI 生图(2026-11-04, 成本门禁, 多厂商契约驱动): 根据画面描述生成图片, 产物自动落盘并作为图片卡片回显。当前可用厂商、模型与额度元信息由本机配置动态注入。用户明确要求\"画一张/生成图片/配图/封面/示意图/插图\"时调用; 每次调用需用户确认, 且受月度限额保护。", "JSON: {\"prompt\":\"画面描述(必填, 尽量详细: 主体/风格/构图/光线)\",\"size\":\"图片尺寸(默认 1024*1024, 长*宽)\",\"n\":\"本次生成张数 1~4(默认 1, 计入月度限额)\",\"provider\":\"可选: 指定厂商显示名(如 通义万相/腾讯混元), 不填走默认\"}")
-    )
+    ).filter { it.name in DafeiyuConfig.ALLOWED_TOOLS } // 大肥鱼: 白名单过滤——仅向模型暴露 ALLOWED_TOOLS 的 7 个核心工具；
+    // 其余 21 个不下发（buildToolsArray）、不激活（tool_detail 查不到）、执行侧也查不到（ToolExecutor 以注册表为准）；
+    // 原版 SshTools/ShellTools/AccessibilityTools 等实现文件不动，合上游零冲突
 
     /**
      * 上下文瘦身(2026-08-31): system 只注入"瘦索引"(工具名+一句话用途),
@@ -304,7 +306,7 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
      * 不占用对话 token; 文本协议降级模式才按需把完整 desc+params 追加进上下文。
      */
     private val toolIndex: Map<String, String> = mapOf(
-        "web" to "联网三合一: search 后台静默检索(Bing, 结果仅AI参考, 用户看不到页面; 想看搜索页用 browser(action=open)), fetch 抓网页正文, download 下载文件到工作目录",
+        "web" to "联网三合一: search 后台静默检索(Tavily, 结果仅AI参考, 用户看不到页面; 想看搜索页用 browser(action=open)), fetch 抓网页正文, download 下载文件到工作目录",
         "browser" to "全屏浏览器控制(用户可见): open 打开网页/搜索词, scan 扫元素, text 读文字, scroll 滚动, click 点击, type 输入, upload 上传文件, clear_cache 清缓存, save_cookies 存登录Cookie",
         "app" to "第三方App控制: scan 扫屏幕元素(空树EMPTY_TREE), click 点击, text 输入, tap 坐标点击(x+y), screenshot 截图, back 返回, home 桌面, launch 启动App, installed 查已装",
         "workdir" to "手机工作目录文件: list 列文件, read 读, write 写, grep 搜索, head 读前N行, stats 统计",
@@ -325,7 +327,7 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
         "security_set" to "信任SSH主机密钥(ssh_trust); 门禁档位/root补权仅用户UI可改, 模型调用会被拒绝",
         "timer_task_create" to "创建定时岗位任务(name/goal/cron + 危险工具授权清单[每项必须给具体用途]), 需用户确认, 拒绝零残留",
         "gen_image" to "AI 生图(多厂商契约驱动, 按张计费, 每次需确认+月度限额): 根据画面描述生成图片并落盘回显"
-    )
+    ).filterKeys { it in DafeiyuConfig.ALLOWED_TOOLS } // 大肥鱼: 系统提示词里的工具索引与注册表同款白名单过滤，否则模型会看到已裁工具并试图用 tool_detail 激活
 
     // ===== Top N 动态装载(2026-09-16): 白名单+热度常驻, 冷门工具经 tool_detail 按需激活 =====
     private const val TOOL_DETAIL = "tool_detail"
@@ -1113,6 +1115,8 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
             val tail = if (lineBuf.isNotBlank() && !DSML_MARK_RE.containsMatchIn(lineBuf) && !isXmlLeakRow(lineBuf.toString())) lineBuf.toString().trimEnd() else ""
             return if (tail.isEmpty()) accumulated.toString() else accumulated.toString() + tail
         }
+        // 大肥鱼: 字面 <think> 流式剥离器（Qwen3 去审核版可能把思考写进 content 通道，而非 reasoning_content）
+        val thinkStripper = DafeiyuConfig.LiteralThinkStripper()
         // 看门狗兜底(2026-11-15 修正): 原实现挂在 reader 建立之后才启动, "写请求体 + 等响应头"整段裸奔。
         // 上游接受连接却不回包时, responseCode 只能干等 readTimeout(60s) 抛 SocketTimeoutException,
         // 再被转成 RetryableException 静默重连一次 => 用户侧实测 120s+ 无任何提示, 这才是"卡住"的真身。
@@ -1313,13 +1317,20 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
                 if (text.isEmpty()) continue
                 markProgress()
                 android.util.Log.d("Nyral", "SSE-CONTENT len=" + text.length + " head=" + text.take(60).replace("\n", " "))
-                // content 出现即思考结束
-                if (mode == MODE_THINKING) {
+                // 大肥鱼: 字面 <think> 流式剥离——思考段分流进 onThinkingDelta（与 reasoning_content 同一回调），
+                // 正文才继续走原流程；剥离器内部维护 inLiteralThink + 标签残尾缓冲，跨 chunk 截断的标签不丢字。
+                val contentText = thinkStripper.process(text,
+                    onThinkStart = { if (mode != MODE_THINKING) { mode = MODE_THINKING; cb.onThinkingStart() } },
+                    onThinkDelta = { cb.onThinkingDelta(it) },
+                    onThinkEnd = { if (mode == MODE_THINKING) { mode = MODE_NONE; cb.onThinkingEnd() } })
+                if (contentText.isEmpty()) continue
+                // content 出现即思考结束（仅当真有正文且剥离器未正处思考段内）
+                if (mode == MODE_THINKING && !thinkStripper.inThink) {
                     mode = MODE_NONE
                     cb.onThinkingEnd()
                 }
 
-                lineBuf.append(text)
+                lineBuf.append(contentText)
                 while (true) {
                     val nl = lineBuf.indexOf("\n")
                     if (nl < 0) break
@@ -1526,6 +1537,11 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
                 // 有输出断线: 不在此追加提示, 主循环按 interrupted 续跑重连(统一提示, 不静默不丢内容)
                 interruptedOut = true
             }
+        }
+        // 大肥鱼: 流结束时把剥离器里截断未闭合的开标签残尾当作正文吐回（避免丢字）；正处思考段内时残尾是闭合标签碎片，直接丢弃
+        if (!thinkStripper.inThink) {
+            val heldTail = thinkStripper.flushTail()
+            if (heldTail.isNotEmpty()) lineBuf.append(heldTail)
         }
         android.util.Log.i("Nyral", "EOF lineBuf=[$lineBuf] mode=$mode nativeAcc=${nativeAcc.size()} toolCalls=${toolCalls.size} aborted=$aborted")
         // 末尾残余(无换行的最后一段)
@@ -1862,6 +1878,7 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
      * 出口兜底净化(2026-11-09): 入口拦截按模式有多条路径, 实测仍有单行漏网
      * (如孤立 </tool_call> 绕过缓冲直接进 accumulated, 落库后污染下一轮上下文,
      * 导致模型自我模仿逐级退化)。落库前对最终正文按同一白名单逐行剔除, 幂等无害。
+     * 大肥鱼: 返回前再剥残留的字面 <think>...</think>（流式主路径由 LiteralThinkStripper 实时分流，本处是入库前最后一道兜底）。
      */
     private fun scrubXmlLeak(s: String): String {
         if (s.isEmpty() || !s.contains('<')) return s
@@ -1876,7 +1893,7 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
             }
             sb.append(line).append('\n')
         }
-        return sb.toString().trimEnd('\n')
+        return DafeiyuConfig.stripLiteralThinkTags(sb.toString().trimEnd('\n'))
     }
 
     /**
@@ -2062,9 +2079,9 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
             buildMcpIndex() +
             "\n可用SSH连接:$sshHint\n" +
             "调用方式: 使用系统提供的 function calling 原生工具调用(工具名与 JSON 参数已由系统给出 schema), 一次(轮)可并行发起多个工具; 不要自己发明不存在的工具名。" +
-            "记忆使用: 若所需信息可能来自与此用户过去的对话且当前上下文未提及, 应调用 memory_search 查证后再回答; 工具调用过程中拿不准时也先查记忆再作答。\n" +
+            "记忆使用: 本版本未提供记忆检索工具，不要调用 memory_search；需要过去对话信息时，以当前上下文与系统注入的相关记忆为准作答。\n" +
             (if (memInject.isNullOrBlank()) "" else memInject + "\n") +
-            (if (patHint.isNullOrBlank()) "" else patHint + "\n") + fmtRules + mdBan + emojiBlock + visionBlock))
+            (if (patHint.isNullOrBlank()) "" else patHint + "\n") + fmtRules + mdBan + emojiBlock + visionBlock + DafeiyuConfig.QWEN3_TOOL_GUARDRAIL))
         if (attachments.isEmpty()) {
             messages.put(JSONObject().put("role", "user").put("content", history))
         } else {

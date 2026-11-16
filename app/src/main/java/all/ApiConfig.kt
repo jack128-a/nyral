@@ -156,6 +156,8 @@ object ApiConfig {
     /** 由每个 Activity.onCreate 调用一次注入 context（重复调用无害） */
     fun init(context: Context) {
         app = context.applicationContext
+        // 大肥鱼: 首次启动种子——默认切到大肥鱼供应商，BuildConfig 有 Key 时加密写入（幂等，见 DafeiyuConfig）
+        DafeiyuConfig.seedDefaults(context)
     }
 
     private fun prefs(): SharedPreferences? = app?.getSharedPreferences(PREF, Context.MODE_PRIVATE)
@@ -166,6 +168,8 @@ object ApiConfig {
         Provider("deepseek", "DeepSeek", "https://api.deepseek.com/v1", "deepseek-v4-pro"),
         Provider("zhipu", "Zhipu GLM", "https://open.bigmodel.cn/api/paas/v4", "glm-5.3"),
         Provider("mimo", "Xiaomi MiMo", "https://api.xiaomimimo.com/v1", "mimo-v2.6-pro"),
+        // 大肥鱼: 默认自建端点（base/model 取自 DafeiyuConfig，Key 不进预设，走首次启动种子加密写入）
+        Provider(DafeiyuConfig.DEFAULT_PROVIDER_ID, DafeiyuConfig.DEFAULT_PROVIDER_NAME, DafeiyuConfig.DEFAULT_BASE_URL, DafeiyuConfig.DEFAULT_MODEL_ID),
     )
 
     // ============ Provider 列表持久化 ============

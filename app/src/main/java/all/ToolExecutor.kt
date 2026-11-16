@@ -491,7 +491,7 @@ object ToolExecutor {
                 val hasUrl = !jo?.optString("url").isNullOrBlank()
                 when {
                     wact == "search" && !hasQ -> "错误: action=search 需要 q(搜索关键词)"
-                    wact == "search" -> WebTools.search(arg)
+                    wact == "search" -> WebTools.search(context, arg)
                     wact == "fetch" && !hasUrl -> "错误: action=fetch 需要 url"
                     wact == "fetch" -> WebTools.fetch(context, arg)
                     wact == "download" && !hasUrl -> "错误: action=download 需要 url"
@@ -815,7 +815,9 @@ object ToolExecutor {
     }
 
     internal fun normalizeArgs(name: String, argRaw: String): String {
-        val t = argRaw.trim()
+        // 大肥鱼: 先剥工具参数外层的 ```json / ``` 围栏（去审核版模型常把整段 JSON 包进围栏），再进原有归一逻辑；
+        // sanitize 只在围栏内是 JSON 对象时才剥，裸文本参数不受影响
+        val t = DafeiyuConfig.sanitizeToolJsonArgs(argRaw)
         if (!t.startsWith("{")) return t  // 已是裸字符串(文本协议兜底路径)
         val json = try { JSONObject(t) } catch (e: Exception) { return t }
         return when (name) {

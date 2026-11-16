@@ -636,7 +636,7 @@
 <string name='ma_error_detail_show'>查看详情</string>
 <string name='ma_error_detail_hide'>收起详情</string>
     <!-- 首启引导页 -->
-    <string name="guide_app_name">Nyral</string>
+    <string name="guide_app_name">大肥鱼</string>
     <string name="guide_slogan">手机上的 AI 助手</string>
     <string name="guide_f1_t">智能对话</string>
     <string name="guide_f1_d">接入主流大模型，支持多模型切换</string>

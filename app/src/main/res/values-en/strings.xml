@@ -544,7 +544,7 @@
     <string name="ma_error_detail_show">Show details</string>
     <string name="ma_error_detail_hide">Hide details</string>
     <!-- 首启引导页 -->
-    <string name="guide_app_name">Nyral</string>
+    <string name="guide_app_name">大肥鱼</string>
     <string name="guide_slogan">AI assistant on your phone</string>
     <string name="guide_f1_t">Smart Chat</string>
     <string name="guide_f1_d">Connect mainstream LLMs, switch between models</string>

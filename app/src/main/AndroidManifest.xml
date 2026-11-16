@@ -31,7 +31,7 @@
     </queries>
 
     <application android:name=".NyralApp"
-        android:label="Nyral"
+        android:label="大肥鱼"
         android:icon="@mipmap/ic_launcher"
         android:theme="@style/Theme.Nyral"
         android:networkSecurityConfig="@xml/network_security_config"
