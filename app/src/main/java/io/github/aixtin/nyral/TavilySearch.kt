@@ -79,15 +79,15 @@ object TavilySearch {
             null
         } ?: return null
         val limit = minOf(maxResults, TAVILY_MAX_VALID)
-        val sb = StringBuilder("搜索结果来源:【Tavily】")
-        var validCount = 0
-        for (i in 0 until arr.length()) {
-            if (validCount >= limit) break
-            val formatted = arr.optJSONObject(i)?.let { formatSingleItem(it, validCount + 1) } ?: continue
-            validCount++
-            sb.append(formatted)
+        // fold 累计已格式化条目：序号按成功格式化后的顺序编（与原循环一致），到 limit 即停；
+        // 不用 break/continue，避免 LoopWithTooManyJumpStatements。
+        val items = (0 until arr.length()).fold(mutableListOf<String>()) { acc, i ->
+            if (acc.size < limit) {
+                arr.optJSONObject(i)?.let { formatSingleItem(it, acc.size + 1) }?.let { acc.add(it) }
+            }
+            acc
         }
-        return sb.toString().trim().ifEmpty { null }
+        return ("搜索结果来源:【Tavily】" + items.joinToString("")).trim().ifEmpty { null }
     }
 
     /** 单条 Tavily 结果：分数/链接/内容缺一不可；摘要超预算时截断并加省略号 */

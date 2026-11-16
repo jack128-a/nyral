@@ -458,6 +458,20 @@ class TaskService : Service() {
                 TaskService.stop(this@TaskService)
             }
         }
+        startTimerChatThread(taskId, history, cb, allowTools)
+    }
+
+    /**
+     * 定时岗位 chat 后台线程（v4：从 runTimerTask 抽出，降 LongMethod/圈复杂度）：
+     * 在定时任务受控例外上下文中跑 LocalEngine.chat；异常兜底走 cb.onError，不打死线程。
+     * LocalEngine 网络请求必须在后台线程执行（主线程会抛 NetworkOnMainThreadException）。
+     */
+    private fun startTimerChatThread(
+        taskId: Long,
+        history: String,
+        cb: LocalEngine.Callback,
+        allowTools: Set<String>
+    ) {
         Thread {
             // C1 修复(2026-10-20): 取消状态重置已移入 LocalEngine.chat 门卫(持锁后统一处理), 避免等待期间误清主对话取消状态; 定时任务与主对话经 chatLock 单飞互斥
             TimerTrace.write(this@TaskService, "chat 线程开始 task=" + taskId)

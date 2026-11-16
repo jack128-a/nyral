@@ -71,7 +71,7 @@ object DafeiyuConfig {
      * 在定时任务上下文中执行 block：预授权集合进 ThreadLocal，finally 确保清理，
      * 避免泄漏到主对话或下一轮任务。由 TaskService.runTimerTask 包裹 LocalEngine.chat 调用。
      */
-    inline fun <T> runWithScheduledTools(allowTools: Set<String>, block: () -> T): T {
+    fun <T> runWithScheduledTools(allowTools: Set<String>, block: () -> T): T {
         scheduledAllowedTools.set(allowTools)
         try {
             return block()
