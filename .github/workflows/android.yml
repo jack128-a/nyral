@@ -1,3 +1,4 @@
+# CI trigger check: re-trigger after enabling Actions on the fork
 name: CI
 
 on:
