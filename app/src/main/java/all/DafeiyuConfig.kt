@@ -24,15 +24,16 @@ object DafeiyuConfig {
 
     // ============ 2. 工具白名单 ============
     /**
-     * 仅向模型暴露的 7 个核心工具（其余 21 个不下发、不激活、执行侧也查不到）。
+     * 仅向模型暴露的 8 个核心工具（其余 20 个不下发、不激活、执行侧也查不到）。
      * 命名以 LocalEngine.kt:271-298 的 toolRegistry 实测为准（氢气原方案的 web_search / fetch_webpage /
      * read_pdf / read_image / schedule_task / generate_image 是 2026-11-11 合并前的旧名，现已不存在）：
      * - web_search + fetch_webpage -> web（联网三合一 search/fetch/download 同属一个工具）
      * - read_pdf -> pdf_page；read_image -> image_view；schedule_task -> timer_task_create；
      *   generate_image -> gen_image；tool_detail 不变。
      * - 第 7 个补 browser：web 的描述本身写明“用户想看页面请改用 browser”，两者是配套的。
-     * 注意：白名单之外还包括 memory_search / ask_user / workdir / artifact 等常用工具，
-     * 按氢气 Step 4 方案一并裁掉（仅保留 7 个）；如需恢复，把名字加回本集合即可。
+     * - 第 8 个是 memory_search：氢气 Step 4 原方案裁掉，用户 2026-11-16 拍板加回来（保留本地记忆检索）。
+     * 注意：白名单之外还包括 ask_user / workdir / artifact 等常用工具，
+     * 按氢气 Step 4 方案一并裁掉；如需恢复，把名字加回本集合即可。
      */
     val ALLOWED_TOOLS: Set<String> = setOf(
         "web", // 联网搜索 + 网页抓取 + 下载（三合一）
@@ -41,6 +42,7 @@ object DafeiyuConfig {
         "image_view", // 读取/查看图片
         "timer_task_create", // 定时任务
         "gen_image", // AI 画图
+        "memory_search", // 本地记忆检索
         "tool_detail" // 动态装载元工具
     )
 

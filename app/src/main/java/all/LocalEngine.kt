@@ -2079,7 +2079,7 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
             buildMcpIndex() +
             "\n可用SSH连接:$sshHint\n" +
             "调用方式: 使用系统提供的 function calling 原生工具调用(工具名与 JSON 参数已由系统给出 schema), 一次(轮)可并行发起多个工具; 不要自己发明不存在的工具名。" +
-            "记忆使用: 本版本未提供记忆检索工具，不要调用 memory_search；需要过去对话信息时，以当前上下文与系统注入的相关记忆为准作答。\n" +
+            "记忆使用: 若所需信息可能来自与此用户过去的对话且当前上下文未提及, 应调用 memory_search 查证后再回答; 工具调用过程中拿不准时也先查记忆再作答。\n" +
             (if (memInject.isNullOrBlank()) "" else memInject + "\n") +
             (if (patHint.isNullOrBlank()) "" else patHint + "\n") + fmtRules + mdBan + emojiBlock + visionBlock + DafeiyuConfig.QWEN3_TOOL_GUARDRAIL))
         if (attachments.isEmpty()) {
