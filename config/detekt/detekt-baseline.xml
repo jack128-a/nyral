@@ -3963,5 +3963,331 @@
     <ID>VariableNaming:NyralApp.kt$NyralApp$/** 崩溃报告匿名上报端点(零鉴权, 只收纯文本崩溃报告) */ private val UPLOAD_URL = "https://atin.asia/crash"</ID>
     <ID>VariableNaming:PersonalityActivity.kt$PersonalityActivity$private val REQ_AVATAR_AI = 3002</ID>
     <ID>VariableNaming:UserProfileActivity.kt$UserProfileActivity$private val REQ_AVATAR_USER = 3001</ID>
+    <ID>ComplexCondition:MainActivity.kt$MainActivity$dNow != null &amp;&amp; dNow.visibility == View.VISIBLE &amp;&amp; emojiDrawerTargetH &gt; 0 &amp;&amp; dNow.height &lt; emojiDrawerTargetH - dp(1) &amp;&amp; emojiDrawerHAnim?.isRunning != true</ID>
+    <ID>CyclomaticComplexMethod:AboutActivity.kt$AboutActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
+    <ID>CyclomaticComplexMethod:FirstRunSetupActivity.kt$FirstRunSetupActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
+    <ID>CyclomaticComplexMethod:GuideActivity.kt$GuideActivity$private fun buildPermRow(item: PermSpec): LinearLayout</ID>
+    <ID>CyclomaticComplexMethod:GuideActivity.kt$GuideActivity$private fun modeCard( iconRes: Int, title: String, desc: String, points: List&lt;Triple&lt;Int, String, String&gt;&gt;, checked: Boolean = false, onPick: (() -&gt; Unit)? = null ): LinearLayout</ID>
+    <ID>CyclomaticComplexMethod:GuideActivity.kt$GuideActivity$private fun refreshPerms()</ID>
+    <ID>CyclomaticComplexMethod:KnowledgeBaseActivity.kt$KnowledgeBaseActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
+    <ID>CyclomaticComplexMethod:LocalEngine.kt$LocalEngine$private fun parseXmlToolCall(xml: String): Pair&lt;String, String&gt;?</ID>
+    <ID>CyclomaticComplexMethod:MainUi.kt$private fun shortModelLabel(model: String, pid: String = "", max: Int = 16): String</ID>
+    <ID>CyclomaticComplexMethod:MediaFileUtils.kt$MediaFileUtils$fun readAll(cr: ContentResolver, uri: Uri, maxBytes: Int = Int.MAX_VALUE): ByteArray</ID>
+    <ID>CyclomaticComplexMethod:PermissionsActivity.kt$PermissionsActivity$private fun refresh()</ID>
+    <ID>CyclomaticComplexMethod:TimerHealthActivity.kt$TimerHealthActivity$private fun taskCard(taskId: Long, name: String, runs: List&lt;TimerTaskDb.RunRecord&gt;, enabled: Boolean): LinearLayout</ID>
+    <ID>CyclomaticComplexMethod:TimerRecovery.kt$TimerRecovery$@Synchronized fun ensure(context: Context, reason: String, force: Boolean = false): Boolean</ID>
+    <ID>CyclomaticComplexMethod:TimerRecovery.kt$TimerRecovery$private fun catchUpMissed(ctx: Context, tasks: List&lt;TimerTaskDb.Task&gt;, reason: String)</ID>
+    <ID>CyclomaticComplexMethod:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$private fun render()</ID>
+    <ID>CyclomaticComplexMethod:TimerTaskEditActivity.kt$TimerTaskEditActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
+    <ID>CyclomaticComplexMethod:UpdateActivity.kt$UpdateActivity$private fun buildStatus( snap: UpdateChecker.Snapshot?, latestTag: String?, hasUpdate: Boolean )</ID>
+    <ID>CyclomaticComplexMethod:UpdateActivity.kt$UpdateActivity$private fun markdown(src: String): CharSequence</ID>
+    <ID>CyclomaticComplexMethod:UpdateChecker.kt$UpdateChecker$private fun fetchReleases(src: Source): List&lt;Release&gt;?</ID>
+    <ID>EmptyCatchBlock:TimerRecovery.kt$TimerRecovery${ }</ID>
+    <ID>EmptyFunctionBlock:GuideActivity.kt$GuideActivity.&lt;no name provided&gt;${}</ID>
+    <ID>EmptyFunctionBlock:KnowledgeBaseActivity.kt$KnowledgeBaseActivity.&lt;no name provided&gt;${}</ID>
+    <ID>EmptyFunctionBlock:TimerTaskEditActivity.kt$TimerTaskEditActivity.&lt;no name provided&gt;${}</ID>
+    <ID>ForbiddenComment:InputBarMemDot.kt$ 渲染指示点。底栏不可用(AI 输出中/语音模式/发送按钮隐藏)时一律隐藏, 避免虚线元素残留。 * TODO: MemoryPrefetch 就绪后由真实检索结果驱动, 本函数签名无需改动。 </ID>
+    <ID>FunctionOnlyReturningConstant:ModeConfig.kt$ModeConfig$fun chatMarkdown(): Boolean</ID>
+    <ID>ImplicitDefaultLocale:TimerTaskEditActivity.kt$TimerTaskEditActivity$String.format("%02d:%02d", hh, mm)</ID>
+    <ID>ImplicitDefaultLocale:TimerTaskEditActivity.kt$TimerTaskEditActivity$String.format("%02d:%02d", minutes / 60, minutes % 60)</ID>
+    <ID>ImplicitDefaultLocale:TimerTaskEditActivity.kt$TimerTaskEditActivity$String.format("每天 %02d:%02d", hh, mm)</ID>
+    <ID>InstanceOfCheckForException:LocalEngine.kt$LocalEngine$e is java.net.SocketTimeoutException</ID>
+    <ID>InvalidPackageDeclaration:InputBarMemDot.kt$package io.github.aixtin.nyral</ID>
+    <ID>InvalidPackageDeclaration:KnowledgeUi.kt$package io.github.aixtin.nyral</ID>
+    <ID>InvalidPackageDeclaration:PermCatalog.kt$package io.github.aixtin.nyral</ID>
+    <ID>InvalidPackageDeclaration:TimerBootJobService.kt$package io.github.aixtin.nyral</ID>
+    <ID>InvalidPackageDeclaration:TimerDispatch.kt$package io.github.aixtin.nyral</ID>
+    <ID>InvalidPackageDeclaration:TimerHealthActivity.kt$package io.github.aixtin.nyral</ID>
+    <ID>InvalidPackageDeclaration:TimerRecovery.kt$package io.github.aixtin.nyral</ID>
+    <ID>InvalidPackageDeclaration:TimerTaskDetailActivity.kt$package io.github.aixtin.nyral</ID>
+    <ID>InvalidPackageDeclaration:TimerTaskEditActivity.kt$package io.github.aixtin.nyral</ID>
+    <ID>InvalidPackageDeclaration:TimerTaskUi.kt$package io.github.aixtin.nyral</ID>
+    <ID>InvalidPackageDeclaration:UpdateActivity.kt$package io.github.aixtin.nyral</ID>
+    <ID>LongMethod:GuideActivity.kt$GuideActivity$private fun buildPermRow(item: PermSpec): LinearLayout</ID>
+    <ID>LongMethod:GuideActivity.kt$GuideActivity$private fun modeCard( iconRes: Int, title: String, desc: String, points: List&lt;Triple&lt;Int, String, String&gt;&gt;, checked: Boolean = false, onPick: (() -&gt; Unit)? = null ): LinearLayout</ID>
+    <ID>LongMethod:KnowledgeBaseActivity.kt$KnowledgeBaseActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
+    <ID>LongMethod:PermCatalog.kt$PermCatalog$fun build(act: Activity, rootGranted: Int, rooted: Boolean = RootCheck.cachedRooted() ?: false): List&lt;PermSpec&gt;</ID>
+    <ID>LongMethod:TimerHealthActivity.kt$TimerHealthActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
+    <ID>LongMethod:TimerHealthActivity.kt$TimerHealthActivity$private fun taskCard(taskId: Long, name: String, runs: List&lt;TimerTaskDb.RunRecord&gt;, enabled: Boolean): LinearLayout</ID>
+    <ID>LongMethod:TimerTaskActivity.kt$TimerTaskActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
+    <ID>LongMethod:TimerTaskActivity.kt$TimerTaskActivity$private fun taskCard(t: TimerTaskDb.Task): View</ID>
+    <ID>LongMethod:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$private fun render()</ID>
+    <ID>LongMethod:TimerTaskEditActivity.kt$TimerTaskEditActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
+    <ID>LongParameterList:GuideActivity.kt$GuideActivity$( iconRes: Int, title: String, desc: String, points: List&lt;Triple&lt;Int, String, String&gt;&gt;, checked: Boolean = false, onPick: (() -&gt; Unit)? = null )</ID>
+    <ID>LongParameterList:LocalEngine.kt$LocalEngine$( elapsedTotalMs: Long, idleMs: Long, gotProgress: Boolean, firstContentMs: Long = FIRST_CONTENT_TIMEOUT_MS, stallMs: Long = STALL_TIMEOUT_MS, maxStreamMs: Long = MAX_STREAM_DURATION_MS )</ID>
+    <ID>LongParameterList:PermCatalog.kt$PermSpec$( val iconRes: Int, val name: String, val desc: String, /** 展示分组: 基础 / 定时任务保障 / 高级与扩展 */ val group: Int, /** 当前系统是否需要该权限(false 表示本机无需, 展示 perm_17) */ val required: () -&gt; Boolean, /** 是否已授权 */ val granted: () -&gt; Boolean, /** 发起授权(运行时弹窗或跳系统设置页) */ val request: (Activity) -&gt; Unit, /** 是否为 Root 权限项(特殊三态渲染 + 后台探测, 不跳转任何授权软件) */ val isRoot: Boolean = false, /** 厂商私有开关(自启动 / 后台运行 / 锁屏 / 弹窗): 无任何标准 API 能读到真实状态, * 故不计入"已授权"统计, 只作为可点击的跳转入口, 状态固定显示"手动确认" */ val manual: Boolean = false )</ID>
+    <ID>LongParameterList:TimerTaskDb.kt$TimerTaskDb$( runId: Long, taskId: Long, slotTs: Long, startTs: Long, ok: Boolean, catchUp: Boolean, result: String? )</ID>
+    <ID>LongParameterList:TimerTaskDb.kt$TimerTaskDb$(taskId: Long, slotTs: Long, startTs: Long, ok: Boolean, catchUp: Boolean, result: String?)</ID>
+    <ID>LoopWithTooManyJumpStatements:MainUi.kt$for</ID>
+    <ID>LoopWithTooManyJumpStatements:MdSpannable.kt$for</ID>
+    <ID>LoopWithTooManyJumpStatements:TimerRecovery.kt$TimerRecovery$for</ID>
+    <ID>LoopWithTooManyJumpStatements:UpdateChecker.kt$UpdateChecker$for</ID>
+    <ID>LoopWithTooManyJumpStatements:UpdateChecker.kt$UpdateChecker$while</ID>
+    <ID>LoopWithTooManyJumpStatements:WorkDir.kt$WorkDir$while</ID>
+    <ID>MagicNumber:AttachmentSender.kt$AttachmentSender$12L</ID>
+    <ID>MagicNumber:AttachmentSender.kt$AttachmentSender$64L</ID>
+    <ID>MagicNumber:DebugServer.kt$DebugServer$500</ID>
+    <ID>MagicNumber:FirstRunSetupActivity.kt$FirstRunSetupActivity$12.5f</ID>
+    <ID>MagicNumber:FirstRunSetupActivity.kt$FirstRunSetupActivity$44</ID>
+    <ID>MagicNumber:GuideActivity.kt$GuideActivity$40</ID>
+    <ID>MagicNumber:InputBarMemDot.kt$0.25f</ID>
+    <ID>MagicNumber:InputBarMemDot.kt$0.7f</ID>
+    <ID>MagicNumber:InputBarMemDot.kt$3</ID>
+    <ID>MagicNumber:InputBarMemDot.kt$6</ID>
+    <ID>MagicNumber:InputBarMemDot.kt$900L</ID>
+    <ID>MagicNumber:KnowledgeBaseActivity.kt$KnowledgeBaseActivity$11f</ID>
+    <ID>MagicNumber:KnowledgeBaseActivity.kt$KnowledgeBaseActivity$20f</ID>
+    <ID>MagicNumber:KnowledgeBaseActivity.kt$KnowledgeBaseActivity$60</ID>
+    <ID>MagicNumber:KnowledgeBaseDb.kt$KnowledgeBaseDb$11</ID>
+    <ID>MagicNumber:KnowledgeBaseDb.kt$KnowledgeBaseDb$12</ID>
+    <ID>MagicNumber:KnowledgeEntryActivity.kt$KnowledgeEntryActivity$20f</ID>
+    <ID>MagicNumber:KnowledgeEntryActivity.kt$KnowledgeEntryActivity$7</ID>
+    <ID>MagicNumber:KnowledgeUi.kt$KnowledgeUi$6L</ID>
+    <ID>MagicNumber:KnowledgeUi.kt$KnowledgeUi$86400000.0</ID>
+    <ID>MagicNumber:LocalEngine.kt$LocalEngine$1000</ID>
+    <ID>MagicNumber:LocalEngine.kt$LocalEngine$22</ID>
+    <ID>MagicNumber:LocalEngine.kt$LocalEngine$400L</ID>
+    <ID>MagicNumber:LocalEngine.kt$LocalEngine$80</ID>
+    <ID>MagicNumber:MainActivity.kt$MainActivity$0x33</ID>
+    <ID>MagicNumber:MainActivity.kt$MainActivity$20f</ID>
+    <ID>MagicNumber:MainActivity.kt$MainActivity$800L</ID>
+    <ID>MagicNumber:MediaFileUtils.kt$MediaFileUtils$64</ID>
+    <ID>MagicNumber:ModeConfig.kt$ModeConfig$10</ID>
+    <ID>MagicNumber:ModeConfig.kt$ModeConfig$120f</ID>
+    <ID>MagicNumber:ModeConfig.kt$ModeConfig$16f</ID>
+    <ID>MagicNumber:ModeConfig.kt$ModeConfig$24f</ID>
+    <ID>MagicNumber:ModeConfig.kt$ModeConfig$28</ID>
+    <ID>MagicNumber:ModeConfig.kt$ModeConfig$3f</ID>
+    <ID>MagicNumber:ModeConfig.kt$ModeConfig$62f</ID>
+    <ID>MagicNumber:ModeConfig.kt$ModeConfig$7.5f</ID>
+    <ID>MagicNumber:NyralApp.kt$NyralApp$10</ID>
+    <ID>MagicNumber:NyralApp.kt$NyralApp$5</ID>
+    <ID>MagicNumber:NyralApp.kt$NyralApp$60_000L</ID>
+    <ID>MagicNumber:PermissionsActivity.kt$PermissionsActivity$13</ID>
+    <ID>MagicNumber:PermissionsActivity.kt$PermissionsActivity$14f</ID>
+    <ID>MagicNumber:PermissionsActivity.kt$PermissionsActivity$20f</ID>
+    <ID>MagicNumber:TaskService.kt$TaskService$300</ID>
+    <ID>MagicNumber:TaskService.kt$TaskService$5000</ID>
+    <ID>MagicNumber:TaskService.kt$TaskService$5000L</ID>
+    <ID>MagicNumber:TaskService.kt$TaskService.&lt;no name provided&gt;$300</ID>
+    <ID>MagicNumber:TaskService.kt$TaskService.Companion$6</ID>
+    <ID>MagicNumber:TaskService.kt$TimerTrace$1024</ID>
+    <ID>MagicNumber:TaskService.kt$TimerTrace$128</ID>
+    <ID>MagicNumber:TimerBootJobService.kt$TimerBootJobService.Companion$1000L</ID>
+    <ID>MagicNumber:TimerBootJobService.kt$TimerBootJobService.Companion$15</ID>
+    <ID>MagicNumber:TimerBootJobService.kt$TimerBootJobService.Companion$5</ID>
+    <ID>MagicNumber:TimerBootJobService.kt$TimerBootJobService.Companion$60</ID>
+    <ID>MagicNumber:TimerHealthActivity.kt$TimerHealthActivity$10</ID>
+    <ID>MagicNumber:TimerHealthActivity.kt$TimerHealthActivity$11f</ID>
+    <ID>MagicNumber:TimerHealthActivity.kt$TimerHealthActivity$12</ID>
+    <ID>MagicNumber:TimerHealthActivity.kt$TimerHealthActivity$12f</ID>
+    <ID>MagicNumber:TimerHealthActivity.kt$TimerHealthActivity$13f</ID>
+    <ID>MagicNumber:TimerHealthActivity.kt$TimerHealthActivity$14</ID>
+    <ID>MagicNumber:TimerHealthActivity.kt$TimerHealthActivity$15f</ID>
+    <ID>MagicNumber:TimerHealthActivity.kt$TimerHealthActivity$16</ID>
+    <ID>MagicNumber:TimerHealthActivity.kt$TimerHealthActivity$24f</ID>
+    <ID>MagicNumber:TimerHealthActivity.kt$TimerHealthActivity$28</ID>
+    <ID>MagicNumber:TimerHealthActivity.kt$TimerHealthActivity$3</ID>
+    <ID>MagicNumber:TimerHealthActivity.kt$TimerHealthActivity$4</ID>
+    <ID>MagicNumber:TimerHealthActivity.kt$TimerHealthActivity$6</ID>
+    <ID>MagicNumber:TimerHealthActivity.kt$TimerHealthActivity$7</ID>
+    <ID>MagicNumber:TimerHealthActivity.kt$TimerHealthActivity$8</ID>
+    <ID>MagicNumber:TimerHealthActivity.kt$TimerHealthActivity$86_400_000L</ID>
+    <ID>MagicNumber:TimerHealthActivity.kt$TimerHealthActivity$9</ID>
+    <ID>MagicNumber:TimerScheduler.kt$TimerScheduler$86_400_000L</ID>
+    <ID>MagicNumber:TimerTaskActivity.kt$TimerTaskActivity$20</ID>
+    <ID>MagicNumber:TimerTaskActivity.kt$TimerTaskActivity$35</ID>
+    <ID>MagicNumber:TimerTaskActivity.kt$TimerTaskActivity$48</ID>
+    <ID>MagicNumber:TimerTaskActivity.kt$TimerTaskActivity$56</ID>
+    <ID>MagicNumber:TimerTaskActivity.kt$TimerTaskActivity$7</ID>
+    <ID>MagicNumber:TimerTaskActivity.kt$TimerTaskActivity$92</ID>
+    <ID>MagicNumber:TimerTaskDb.kt$TimerTaskDb$10</ID>
+    <ID>MagicNumber:TimerTaskDb.kt$TimerTaskDb$24L</ID>
+    <ID>MagicNumber:TimerTaskDb.kt$TimerTaskDb$300</ID>
+    <ID>MagicNumber:TimerTaskDb.kt$TimerTaskDb$3600_000L</ID>
+    <ID>MagicNumber:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$10</ID>
+    <ID>MagicNumber:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$11f</ID>
+    <ID>MagicNumber:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$12</ID>
+    <ID>MagicNumber:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$12f</ID>
+    <ID>MagicNumber:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$13</ID>
+    <ID>MagicNumber:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$13f</ID>
+    <ID>MagicNumber:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$14</ID>
+    <ID>MagicNumber:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$14f</ID>
+    <ID>MagicNumber:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$15f</ID>
+    <ID>MagicNumber:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$16</ID>
+    <ID>MagicNumber:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$24</ID>
+    <ID>MagicNumber:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$3</ID>
+    <ID>MagicNumber:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$30</ID>
+    <ID>MagicNumber:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$4</ID>
+    <ID>MagicNumber:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$5</ID>
+    <ID>MagicNumber:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$6</ID>
+    <ID>MagicNumber:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$8</ID>
+    <ID>MagicNumber:TimerTaskDetailActivity.kt$TimerTaskDetailActivity$9</ID>
+    <ID>MagicNumber:TimerTaskEditActivity.kt$TimerTaskEditActivity$0.45f</ID>
+    <ID>MagicNumber:TimerTaskEditActivity.kt$TimerTaskEditActivity$10</ID>
+    <ID>MagicNumber:TimerTaskEditActivity.kt$TimerTaskEditActivity$12</ID>
+    <ID>MagicNumber:TimerTaskEditActivity.kt$TimerTaskEditActivity$12f</ID>
+    <ID>MagicNumber:TimerTaskEditActivity.kt$TimerTaskEditActivity$13f</ID>
+    <ID>MagicNumber:TimerTaskEditActivity.kt$TimerTaskEditActivity$14</ID>
+    <ID>MagicNumber:TimerTaskEditActivity.kt$TimerTaskEditActivity$14f</ID>
+    <ID>MagicNumber:TimerTaskEditActivity.kt$TimerTaskEditActivity$16</ID>
+    <ID>MagicNumber:TimerTaskEditActivity.kt$TimerTaskEditActivity$21</ID>
+    <ID>MagicNumber:TimerTaskEditActivity.kt$TimerTaskEditActivity$22f</ID>
+    <ID>MagicNumber:TimerTaskEditActivity.kt$TimerTaskEditActivity$3</ID>
+    <ID>MagicNumber:TimerTaskEditActivity.kt$TimerTaskEditActivity$6</ID>
+    <ID>MagicNumber:TimerTaskEditActivity.kt$TimerTaskEditActivity$60</ID>
+    <ID>MagicNumber:TimerTaskEditActivity.kt$TimerTaskEditActivity$7</ID>
+    <ID>MagicNumber:TimerTaskEditActivity.kt$TimerTaskEditActivity$8</ID>
+    <ID>MagicNumber:TimerTaskEditActivity.kt$TimerTaskEditActivity$9</ID>
+    <ID>MagicNumber:TimerTaskUi.kt$TimerTaskUi$0x00FFFFFF</ID>
+    <ID>MagicNumber:TimerTaskUi.kt$TimerTaskUi$0x1A000000</ID>
+    <ID>MagicNumber:TimerTaskUi.kt$TimerTaskUi$10</ID>
+    <ID>MagicNumber:TimerTaskUi.kt$TimerTaskUi$12</ID>
+    <ID>MagicNumber:TimerTaskUi.kt$TimerTaskUi$13f</ID>
+    <ID>MagicNumber:TimerTaskUi.kt$TimerTaskUi$14f</ID>
+    <ID>MagicNumber:TimerTaskUi.kt$TimerTaskUi$4</ID>
+    <ID>MagicNumber:ToolExecutor.kt$ToolExecutor$15000L</ID>
+    <ID>MagicNumber:Ui.kt$Ui$12f</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$0x14000000</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$1.06f</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$10</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$11</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$12</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$12.5f</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$12f</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$13f</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$14</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$14f</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$15</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$15f</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$16</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$16f</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$18</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$20f</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$3</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$32</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$360f</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$4</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$6</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$8</ID>
+    <ID>MagicNumber:UpdateActivity.kt$UpdateActivity$800</ID>
+    <ID>MagicNumber:UpdateChecker.kt$UpdateChecker$25</ID>
+    <ID>MagicNumber:UpdateChecker.kt$UpdateChecker$60_000L</ID>
+    <ID>MagicNumber:UpdateChecker.kt$UpdateChecker.&lt;no name provided&gt;$60_000L</ID>
+    <ID>MagicNumber:WorkDir.kt$WorkDir$4</ID>
+    <ID>MagicNumber:WorkTools.kt$WorkTools$4</ID>
+    <ID>MatchingDeclarationName:InputBarMemDot.kt$MemDotState</ID>
+    <ID>MaxLineLength:AppearanceActivity.kt$AppearanceActivity$Toast.makeText(this@AppearanceActivity, getString(if (on) R.string.settings_video_direct_on else R.string.settings_video_direct_off), Toast.LENGTH_SHORT).show()</ID>
+    <ID>MaxLineLength:AttachmentSender.kt$AttachmentSender$AttachmentStore.fileOf(host, key)?.let { MediaFileUtils.readAll(host.contentResolver, Uri.fromFile(it), SMALL_VIDEO_BYTES) }</ID>
+    <ID>MaxLineLength:BrowserPageSync.kt$if (elements.isEmpty()) return "页面暂无识别到可操作元素(可能动态加载中)。建议: 1)稍等1秒再调 browser(action=scan) 重扫; 2)用 browser(action=text) 读取整页文字; 3)用 browser(action=scroll) 滚动页面后再 browser(action=scan); 仍无则页面可能纯展示, 可考虑 web(action=search) 补充"</ID>
+    <ID>MaxLineLength:FirstRunSetupActivity.kt$FirstRunSetupActivity$ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity")</ID>
+    <ID>MaxLineLength:FirstRunSetupActivity.kt$FirstRunSetupActivity$Toast.makeText(this@FirstRunSetupActivity, getString(R.string.keepalive_toast_fail), Toast.LENGTH_LONG).show()</ID>
+    <ID>MaxLineLength:GuideActivity.kt$GuideActivity$text = if (ModeConfig.chatMode()) getString(R.string.guide_mode_chat_t) else getString(R.string.guide_mode_agent_t)</ID>
+    <ID>MaxLineLength:KnowledgeBaseActivity.kt$KnowledgeBaseActivity$meta = getString(R.string.kb_entry_meta_short, hit.entry.version, KnowledgeUi.rel(this, hit.entry.updatedTs))</ID>
+    <ID>MaxLineLength:KnowledgeBaseDb.kt$KnowledgeBaseDb$"SELECT e.id,e.chapter_id,e.title,e.content,e.img_refs,e.source_session_id,e.source_msg_ids,e.version,e.deleted,e.created_ts,e.updated_ts,c.title,b.title "</ID>
+    <ID>MaxLineLength:LocalEngine.kt$LocalEngine$"action" to str("操作: search 后台静默搜索 / fetch 抓取网页正文 / download 下载到工作目录", enums = listOf("search", "fetch", "download"))</ID>
+    <ID>MaxLineLength:LocalEngine.kt$LocalEngine$"web" to "联网三合一: search 后台静默检索(Tavily, 结果仅AI参考, 用户看不到页面; 想看搜索页用 browser(action=open)), fetch 抓网页正文, download 下载文件到工作目录"</ID>
+    <ID>MaxLineLength:LocalEngine.kt$LocalEngine$"搜索策略(重要·三级)：1) 一般搜索默认先用 web(action=search) 后台静默快查(不打断用户界面)，拿到标题+摘要直接汇报，用户没要求看页面就不要开浏览器展示页；2) 仅当用户明确要\"看页面/看结果页/进某站\"，或 web(action=search) 无有效结果、需要登录态、卡验证码/登录墙时，才升级调用 browser(action=open) 打开全屏浏览器页(用户可见)；3) 浏览器页内遇到验证码/登录墙：不要硬点，停下提示用户点底部\"接管\"按钮手动完成(输验证码/登录)，用户再点\"交还 AI\"后你可继续 browser 的 scan/click/type 等操作；用户登录成功后调用 browser(action=save_cookies) 把该站点登录 Cookie 存入 site_auth.json，此后 web(action=fetch/download) 静默抓取自动带登录态，无需再开浏览器。\n"</ID>
+    <ID>MaxLineLength:LocalEngine.kt$LocalEngine$Regex("&lt;(?:function_call|tool_use|invoke)\\s+name=\"([^\"]+)\"\\s*&gt;([\\s\\S]*?)&lt;/(?:function_call|tool_use|invoke)&gt;")</ID>
+    <ID>MaxLineLength:LocalEngine.kt$LocalEngine$ToolSpec("artifact", "产物登记通道(2026-11-11 合并 artifact_save/artifact_save_bin): kind=text 交付纯文本成品(代码/HTML/SVG/Markdown/PDF源码), kind=binary 交付二进制成品(图片/音频/视频/压缩包, data 为 Base64 且解码后不超过 512KB)。成品全文不要直接贴在回复里。必须调用场景: 用户要完整代码文件/可运行的HTML网页/成品文档/SVG, 或连续代码超过30行, 或要求保存/导出/交付文件。不要滥用: 简短代码片段/解释性示例/纯思路讨论不登记。content 与 data 二选一(kind=text 用 content, kind=binary 用 data); content 必须是产物文件本身正文, 不要把工具调用指令/JSON包装/解释文字混进 content。同名再登记自动覆盖升版, 历史卡片展示最新版。登记成功后必须立即在回复中单独一行原样输出 [产物:文件名](att://返回的引用) 展示卡片, 不要重复贴全文", "JSON: {\"name\":\"产物文件名(带扩展名)\",\"kind\":\"text|binary\",\"content\":\"kind=text 的正文\",\"data\":\"kind=binary 的Base64\"}")</ID>
+    <ID>MaxLineLength:LocalEngine.kt$LocalEngine$ToolSpec("sh_run", "本机系统级执行 Shell 脚本(就地, 断网可用): 设备已 root 则 su -c 提权执行, 未 root 降级普通 sh 执行; 危险命令(rm -rf / /mkfs/dd 写设备/重启等)自动整脚本拦截; 返回 exit code + 输出(超2万字符截断)。用于清目录/查系统/禁自启/冻结App等系统级操作", "JSON: {\"script\":\"脚本内容\",\"timeout_ms\":15000} 参数名是 script(传 command/cmd 也会被自动兼容)。本工具在手机本机就地执行, 不需要任何 SSH 连接, 与远端 ssh_run 完全不同")</ID>
+    <ID>MaxLineLength:LocalEngine.kt$LocalEngine$ToolSpec("site_auth", "管理站点登录凭据(存 site_auth.json, 供 web(action=fetch/download) 自动注入 Cookie)", "JSON: {\"action\":\"list\"} 或 {\"action\":\"set\",\"site\":\"域名\",\"cookie\":\"完整Cookie字符串\"} 或 {\"action\":\"del\",\"site\":\"域名\"}")</ID>
+    <ID>MaxLineLength:LocalEngine.kt$LocalEngine$ToolSpec("ssh_run", "SSH 动作工具(2026-11-11 吸收 ssh_config_add): action=exec 通过SSH在远程主机执行命令, 格式: 连接名:命令(连接名见下方可用SSH连接); 参数名 command, 与本机 sh_run(参数名 script)不同, 不要互相混用; 经跳板机(标注\"经跳板\")的连接只需指定连接名, 跳板自动处理, 不要自行添加跳板参数。action=add_config 新增/更新SSH连接配置(直接写入配置库, 写后即可用 exec 连接): 必填 name/host/user, 端口默认22, 同名 name 覆盖旧配置; 可选 password/privateKey/passphrase, 密码与私钥至少给其一(都没有时仅保存连接, 连接会因缺凭据失败); 跳板机可选 proxyHost/proxyPort(默认22)/proxyUser/proxyPassword/proxyPrivateKey/proxyPassphrase", "JSON: {\"action\":\"exec|add_config\",\"conn\":\"连接名\",\"command\":\"命令\",\"name\":\"连接名\",\"host\":\"主机\",\"port\":22,\"user\":\"用户\"}")</ID>
+    <ID>MaxLineLength:LocalEngine.kt$LocalEngine$ToolSpec("web", "联网三合一(2026-11-11 合并 web_search/web_fetch/web_download): action=search 后台静默联网搜索(Tavily), 结果仅供AI参考阅读, 用户看不到页面(用户想看搜索结果页/网页请改用 browser(action=open)); action=fetch 抓取网页并提取正文文本, site_auth.json 已配置该域名 Cookie 会自动注入; action=download 下载网页/文件并保存到手机工作目录 下载/ 子目录, 返回\"下载成功\"即表示已落盘, 直接向用户报告结果, 不要再调 workdir 重复验证", "JSON: {\"action\":\"search|fetch|download\",\"q\":\"搜索关键词(action=search)\",\"url\":\"https://...(action=fetch|download)\",\"max_results\":5,\"max_chars\":3000,\"name\":\"可选文件名(action=download)\"}")</ID>
+    <ID>MaxLineLength:LocalEngine.kt$LocalEngine$ToolSpec("workdir", "手机工作目录(Download/Nyral_work)文件操作: action=list 列文件, read 读文本文件(name), write 写文件(name+content, 同名覆盖, name 必须带真实扩展名如 早报.md, 不要额外再叠加 .txt), grep 全文搜索(kw, 可选ext扩展名过滤/case大小写), head 读前N行或N字符(name+lines或chars), stats 统计概览", "JSON: {\"action\":\"list|read|write|grep|head|stats\",...}")</ID>
+    <ID>MaxLineLength:LocalEngine.kt$LocalEngine$android.util.Log.i("Nyral", "cancel body hasLeak=" + body.contains("&lt;/tool_call&gt;") + " partialHasLeak=" + e.partial.contains("&lt;/tool_call&gt;"))</ID>
+    <ID>MaxLineLength:LocalEngine.kt$LocalEngine.StallTimeoutException$class</ID>
+    <ID>MaxLineLength:MainActivity.kt$MainActivity$LogStore.i(LogStore.MAIN, (if (reason == LocalEngine.CancelReason.SESSION_SWITCH) "切会话取消进行中请求" else "用户停止输出") + ", 代际=${session.epoch}")</ID>
+    <ID>MaxLineLength:MainActivity.kt$MainActivity$android.util.Log.i("NyralIme", "instantPop imeH=$imeH h=${dNow.height} tgt=$emojiDrawerTargetH")</ID>
+    <ID>MaxLineLength:PermCatalog.kt$PermActions$act.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${act.packageName}")))</ID>
+    <ID>MaxLineLength:PermCatalog.kt$PermActions$act.startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:${act.packageName}")))</ID>
+    <ID>MaxLineLength:PermCatalog.kt$PermActions$act.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${act.packageName}")))</ID>
+    <ID>MaxLineLength:PermCatalog.kt$PermActions$act.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${act.packageName}")))</ID>
+    <ID>MaxLineLength:PermCatalog.kt$PermActions$act.startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${act.packageName}")))</ID>
+    <ID>MaxLineLength:PermCatalog.kt$PermActions$act.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${act.packageName}")))</ID>
+    <ID>MaxLineLength:PermCatalog.kt$PermActions$if (runCatching { act.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }.isSuccess) return</ID>
+    <ID>MaxLineLength:PermCatalog.kt$PermCatalog$fun</ID>
+    <ID>MaxLineLength:PermissionsActivity.kt$PermissionsActivity$background = TimerTaskUi.capsule(this@PermissionsActivity, TimerTaskUi.tint(if (rootGranted == 1) Ui.OK else Ui.SUB), 12)</ID>
+    <ID>MaxLineLength:TaskService.kt$TaskService$LocalEngine.chat(this@TaskService, history, cb, silentMode = true, allowTools = allowTools, taskId = taskId) // 定时岗位静默: 未授权危险工具自动拒绝不挂起, 白名单内放行; X-Nyral-Task-ID 标识任务来源</ID>
+    <ID>MaxLineLength:TaskService.kt$TaskService$android.util.Log.i("TimerTask", "定时岗位执行开始: ${task.name}" + (if (manual) " (手动)" else if (catchUp) " (补跑)" else ""))</ID>
+    <ID>MaxLineLength:TaskService.kt$TaskService$private</ID>
+    <ID>MaxLineLength:TaskService.kt$TaskService$val allowTools = task.allowTools.split(',').map { SecurityConfig.normalizeAllowKey(it) }.filter { it.isNotEmpty() }.toSet()</ID>
+    <ID>MaxLineLength:TimerBootJobService.kt$TimerBootJobService.Companion$.</ID>
+    <ID>MaxLineLength:TimerHealthActivity.kt$TimerHealthActivity$private</ID>
+    <ID>MaxLineLength:TimerRecovery.kt$TimerRecovery$(if (zombie) "slot=" + TimerScheduler.fmtSlot(due) + " 已认领但无终态台账(僵尸认领)" else "错过 slot=" + TimerScheduler.fmtSlot(due))</ID>
+    <ID>MaxLineLength:TimerRecovery.kt$TimerRecovery$TimerTrace.write(ctx, "ensure 进入 reason=" + reason + " force=" + force + " rebooted=" + rebooted + " enabled=" + enabled.size + " missing=" + missing.size)</ID>
+    <ID>MaxLineLength:TimerRecovery.kt$TimerRecovery$TimerTrace.write(ctx, "任务 " + t.id + " slot=" + TimerScheduler.fmtSlot(due) + " lastSlot=" + TimerScheduler.fmtSlot(t.lastSlotTs) + " lastRun=" + TimerScheduler.fmtSlot(t.lastRunTs) + " zombie=" + zombie)</ID>
+    <ID>MaxLineLength:TimerScheduler.kt$TimerScheduler$Log.i("TimerScheduler", "续期到 ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(atMs))}")</ID>
+    <ID>MaxLineLength:TimerScheduler.kt$TimerScheduler$val m = Regex("每天\\s*(\\d{1,2}):(\\d{2})").find(cronDesc.trim()) ?: run { Log.e("TimerScheduler", "表达式无法解析: $cronDesc"); return null }</ID>
+    <ID>MaxLineLength:TimerTaskDb.kt$TimerTaskDb$"INSERT INTO timer_runs(task_id, slot_ts, start_ts, end_ts, ok, catch_up, result, created_ts) VALUES(?,?,?,?,?,?,?,?)"</ID>
+    <ID>MaxLineLength:TimerTaskDb.kt$TimerTaskDb$"SELECT id, name, goal, cron_desc, enabled, last_run_ts, last_result, session_id, mode, allow_tools, last_slot_ts FROM timer_tasks ORDER BY id DESC"</ID>
+    <ID>MaxLineLength:TimerTaskDb.kt$TimerTaskDb$"SELECT id, name, goal, cron_desc, enabled, last_run_ts, last_result, session_id, mode, allow_tools, last_slot_ts FROM timer_tasks WHERE id = ?"</ID>
+    <ID>MaxLineLength:TimerTaskDb.kt$TimerTaskDb$"SELECT id, task_id, slot_ts, start_ts, end_ts, ok, catch_up, result FROM timer_runs WHERE start_ts &gt;= ? ORDER BY id DESC"</ID>
+    <ID>MaxLineLength:TimerTaskEditActivity.kt$TimerTaskEditActivity$SecurityConfig.audit(this, "timer_task_update", "${old.name}(id=${old.id}) -&gt; $name / $cron", "ui_user", "timer_task")</ID>
+    <ID>MaxLineLength:ToolExecutor.kt$ToolExecutor$SecurityConfig.audit(context, "artifact", "name=$name kind=binary v=$v bytes=${bytes.size}", "ai", "bubble")</ID>
+    <ID>MaxLineLength:ToolExecutor.kt$ToolExecutor$SecurityConfig.audit(context, "artifact", "name=$name kind=text v=$v len=${content.length}", "ai", "bubble")</ID>
+    <ID>MaxLineLength:ToolExecutor.kt$ToolExecutor$else -&gt; "错误: ssh_run(action=exec) 需要 command, 如 {\"action\":\"exec\",\"command\":\"vps:ls /\"}"</ID>
+    <ID>MaxLineLength:ToolExecutor.kt$ToolExecutor$legacy.first == "web" &amp;&amp; legacy.second == "search" -&gt; "{\"action\":\"search\",\"q\":${JSONObject.quote(raw)}}"</ID>
+    <ID>MaxLineLength:ToolExecutor.kt$ToolExecutor$val normArg = JSONObject().put("script", script).put("timeout_ms", jo?.optLong("timeout_ms", 15000L) ?: 15000L).toString()</ID>
+    <ID>NestedBlockDepth:MainActivity.kt$MainActivity$internal fun applyBottomOcclusion(drawerH: Int)</ID>
+    <ID>NestedBlockDepth:MediaFileUtils.kt$MediaFileUtils$fun readAll(cr: ContentResolver, uri: Uri, maxBytes: Int = Int.MAX_VALUE): ByteArray</ID>
+    <ID>NestedBlockDepth:TaskService.kt$TaskService$override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int</ID>
+    <ID>NestedBlockDepth:WorkDir.kt$WorkDir$fun read(context: Context, name: String): ByteArray?</ID>
+    <ID>NestedBlockDepth:WorkDir.kt$WorkDir$private fun findFamilyUri(context: Context, safeName: String, subDir: String = ""): Uri?</ID>
+    <ID>NewLineAtEndOfFile:KnowledgeEntryActivity.kt$io.github.aixtin.nyral.KnowledgeEntryActivity.kt</ID>
+    <ID>ReturnCount:LocalEngine.kt$LocalEngine$internal fun probeVerdict( elapsedTotalMs: Long, idleMs: Long, gotProgress: Boolean, firstContentMs: Long = FIRST_CONTENT_TIMEOUT_MS, stallMs: Long = STALL_TIMEOUT_MS, maxStreamMs: Long = MAX_STREAM_DURATION_MS ): ProbeVerdict</ID>
+    <ID>ReturnCount:LocalEngine.kt$LocalEngine$private fun isXmlLeakRow(row: String): Boolean</ID>
+    <ID>ReturnCount:MainUi.kt$private fun modelTokenScore(t: String): Int</ID>
+    <ID>ReturnCount:MainUi.kt$private fun shortModelLabel(model: String, pid: String = "", max: Int = 16): String</ID>
+    <ID>ReturnCount:MdSpannable.kt$internal fun chatPlainSpanned(raw: String): CharSequence</ID>
+    <ID>ReturnCount:MemoryDb.kt$MemoryDb$fun appendSessionMsgs(id: Long, msgs: List&lt;SessionMsg&gt;, title: String? = null, mode: Int? = null): Int</ID>
+    <ID>ReturnCount:MemoryDb.kt$MemoryDb$fun sessionExists(id: Long): Boolean</ID>
+    <ID>ReturnCount:NyralApp.kt$NyralApp$private fun checkUnexplainedExit()</ID>
+    <ID>ReturnCount:NyralApp.kt$NyralApp$private fun lastExitInfo(): android.app.ApplicationExitInfo?</ID>
+    <ID>ReturnCount:PermCatalog.kt$PermActions$fun openExactAlarm(act: Activity)</ID>
+    <ID>ReturnCount:TaskService.kt$TaskService$override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int</ID>
+    <ID>ReturnCount:TimerDispatch.kt$TimerDispatch$fun admit(context: Context, taskId: Long, catchUp: Boolean, manual: Boolean = false): Boolean</ID>
+    <ID>ReturnCount:TimerKeepAliveService.kt$TimerKeepAliveService$override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int</ID>
+    <ID>ReturnCount:TimerRecovery.kt$TimerRecovery$@Synchronized fun ensure(context: Context, reason: String, force: Boolean = false): Boolean</ID>
+    <ID>ReturnCount:TimerRecovery.kt$TimerRecovery$private fun catchUpMissed(ctx: Context, tasks: List&lt;TimerTaskDb.Task&gt;, reason: String)</ID>
+    <ID>ReturnCount:TimerScheduler.kt$TimerScheduler$fun hasAlarm(context: Context, taskId: Long): Boolean</ID>
+    <ID>ReturnCount:TimerScheduler.kt$TimerScheduler$fun hhmmOf(cronDesc: String): Pair&lt;Int, Int&gt;?</ID>
+    <ID>ReturnCount:TimerScheduler.kt$TimerScheduler$fun latestDueSlot(cronDesc: String, now: Long): Long</ID>
+    <ID>ReturnCount:TimerTaskUi.kt$TimerTaskUi$fun nextHhmm(t: TimerTaskDb.Task): String</ID>
+    <ID>ReturnCount:UpdateChecker.kt$UpdateChecker$fun readCache(ctx: Context): Pair&lt;Snapshot, Long&gt;?</ID>
+    <ID>ReturnCount:UpdateChecker.kt$UpdateChecker$private fun fetchReleases(src: Source): List&lt;Release&gt;?</ID>
+    <ID>ReturnCount:WorkDir.kt$WorkDir$fun actualName(context: Context, name: String, subDir: String = ""): String?</ID>
+    <ID>ReturnCount:WorkDir.kt$WorkDir$private fun findFamilyUri(context: Context, safeName: String, subDir: String = ""): Uri?</ID>
+    <ID>ReturnCount:WorkDir.kt$WorkDir$private fun renameTo(resolver: android.content.ContentResolver, uri: Uri, safeName: String, subDir: String = "")</ID>
+    <ID>ReturnCount:WorkTools.kt$WorkTools$internal fun stripRedundantTxtSuffix(name: String): String</ID>
+    <ID>SwallowedException:PermCatalog.kt$PermActions$e2: Exception</ID>
+    <ID>SwallowedException:PermCatalog.kt$PermActions$e: Exception</ID>
+    <ID>SwallowedException:TaskService.kt$TaskService$e: Exception</ID>
+    <ID>SwallowedException:TimerRecovery.kt$TimerRecovery$e: Exception</ID>
+    <ID>SwallowedException:TimerScheduler.kt$TimerScheduler$e: Exception</ID>
+    <ID>SwallowedException:TimerTaskDb.kt$TimerTaskDb$e: Exception</ID>
+    <ID>ThrowsCount:MediaFileUtils.kt$MediaFileUtils$fun readAll(cr: ContentResolver, uri: Uri, maxBytes: Int = Int.MAX_VALUE): ByteArray</ID>
+    <ID>TooGenericExceptionCaught:PermCatalog.kt$PermActions$e2: Exception</ID>
+    <ID>TooGenericExceptionCaught:PermCatalog.kt$PermActions$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:TaskService.kt$TaskService$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:TimerBootJobService.kt$TimerBootJobService$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:TimerBootJobService.kt$TimerBootJobService.Companion$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:TimerDispatch.kt$TimerDispatch$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:TimerRecovery.kt$TimerRecovery$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:TimerTaskDb.kt$TimerTaskDb$e: Exception</ID>
+    <ID>TooManyFunctions:AITerminal.kt$AITerminalService : Service</ID>
+    <ID>TooManyFunctions:PermCatalog.kt$PermActions</ID>
+    <ID>TooManyFunctions:TaskService.kt$TaskService : Service</ID>
+    <ID>TooManyFunctions:TimerHealthActivity.kt$TimerHealthActivity : Activity</ID>
+    <ID>TooManyFunctions:TimerScheduler.kt$TimerScheduler</ID>
+    <ID>TooManyFunctions:TimerTaskUi.kt$TimerTaskUi</ID>
+    <ID>TooManyFunctions:UpdateActivity.kt$UpdateActivity : Activity</ID>
+    <ID>UnusedParameter:KnowledgeUi.kt$KnowledgeUi$ctx: Context</ID>
+    <ID>UnusedParameter:TaskService.kt$TaskService.Companion$manual: Boolean = false</ID>
+    <ID>UnusedParameter:UpdateActivity.kt$UpdateActivity$snap: UpdateChecker.Snapshot</ID>
+    <ID>UnusedPrivateProperty:TaskService.kt$TaskService.Companion$/** 兼容旧判据: 是否已完成前台化 */ private val fgStarted: Boolean get() = state == State.FOREGROUND</ID>
+    <ID>UseCheckOrError:MediaFileUtils.kt$MediaFileUtils$throw IllegalStateException("文件 $declared 字节超过上限 $limit 字节")</ID>
+    <ID>UseCheckOrError:MediaFileUtils.kt$MediaFileUtils$throw IllegalStateException("文件超过上限 $limit 字节")</ID>
+    <ID>VariableNaming:AiBubbleHolder.kt$AiBubbleHolder$/** Agent 折叠流开关(2026-11-16 停用): 老板要求 Agent 模式思考/工具展现回归聊天模式同款 * (单行状态行 + 片段轮播 + 点击就地展开), 折叠胶囊 + 底部抽屉方案整段保留, 置 true 可一键恢复 */ private val AGENT_FOLD_ENABLED = false</ID>
   </CurrentIssues>
 </SmellBaseline>
