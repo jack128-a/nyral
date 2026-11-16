@@ -462,7 +462,10 @@ class TaskService : Service() {
             // C1 修复(2026-10-20): 取消状态重置已移入 LocalEngine.chat 门卫(持锁后统一处理), 避免等待期间误清主对话取消状态; 定时任务与主对话经 chatLock 单飞互斥
             TimerTrace.write(this@TaskService, "chat 线程开始 task=" + taskId)
             try {
-                LocalEngine.chat(this@TaskService, history, cb, silentMode = true, allowTools = allowTools, taskId = taskId) // 定时岗位静默: 未授权危险工具自动拒绝不挂起, 白名单内放行; X-Nyral-Task-ID 标识任务来源
+                // 大肥鱼 v3: 定时任务受控例外——本轮工具门禁放行本任务预授权的 allowTools（永禁工具除外），执行完自动清理
+                DafeiyuConfig.runWithScheduledTools(allowTools) {
+                    LocalEngine.chat(this@TaskService, history, cb, silentMode = true, allowTools = allowTools, taskId = taskId) // 定时岗位静默: 未授权危险工具自动拒绝不挂起, 白名单内放行; X-Nyral-Task-ID 标识任务来源
+                }
                 TimerTrace.write(this@TaskService, "chat 返回(未抛异常) task=" + taskId)
             } catch (e: Throwable) {
                 // fix(2026-11-15): 原先 chat 抛出的异常会直接打死这个线程, 既不落台账也不回调,

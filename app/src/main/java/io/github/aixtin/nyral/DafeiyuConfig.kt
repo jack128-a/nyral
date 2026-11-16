@@ -24,7 +24,7 @@ object DafeiyuConfig {
 
     // ============ 2. 工具白名单 ============
     /**
-     * 仅向模型暴露的 7 个核心业务工具（其余 21 个不下发、不激活、执行侧也查不到）。
+     * 仅向模型暴露的 8 个核心业务工具（其余 20 个不下发、不激活、执行侧也查不到）。
      * 命名以 LocalEngine.kt 的 toolRegistry 实测为准（氢气原方案的 web_search / fetch_webpage /
      * read_pdf / read_image / schedule_task / generate_image 是 2026-11-11 合并前的旧名，现已不存在）：
      * - web_search + fetch_webpage -> web（联网三合一 search/fetch/download 同属一个工具）
@@ -32,7 +32,7 @@ object DafeiyuConfig {
      *   generate_image -> gen_image。
      * - 第 7 个补 browser：web 的描述本身写明“用户想看页面请改用 browser”，两者是配套的。
      * - memory_search：氢气 Step 4 原方案裁掉，用户 2026-11-16 拍板加回来（保留本地记忆检索）。
-     * - tool_detail：v2 去掉（白名单过滤后仅 7 个业务工具，Top-N 装载不触发冷门折叠，无冷门工具可激活）。
+     * - tool_detail：v3 恢复（用户拍板 8 个工具，v2 误减到 7 个；Top-N 在 ≤8 工具时不触发冷门折叠，保留无害）。
      * 注意：白名单之外还包括 ask_user / workdir / artifact 等常用工具，
      * 按氢气 Step 4 方案一并裁掉；如需恢复，把名字加回本集合即可。
      */
@@ -43,8 +43,60 @@ object DafeiyuConfig {
         "image_view", // 读取/查看图片
         "timer_task_create", // 定时任务
         "gen_image", // AI 画图
-        "memory_search" // 本地记忆检索
+        "memory_search", // 本地记忆检索
+        "tool_detail" // 查询未下发工具规格并激活（v3 恢复，用户拍板 8 个）
     )
+
+    // ============ 2b. 定时任务受控例外（v3，氢气定案） ============
+    /**
+     * 永禁工具：即使定时任务在创建时声明了，也绝不在后台静默执行。
+     * 氢气原名 → 本仓库真实工具名映射：
+     * - shell / local_shell → sh_run（本机 Shell 执行）
+     * - ssh / ssh_exec → ssh_run（SSH 远程执行）
+     * - accessibility_click / accessibility_action → app（无障碍控第三方 App）
+     * 原名一并保留在集合里做防御（若上游新增同名工具同样禁掉）。
+     */
+    val FORBIDDEN_FOREVER_TOOLS: Set<String> = setOf(
+        "sh_run", "ssh_run", "app",
+        "shell", "local_shell", "ssh", "ssh_exec", "accessibility_click", "accessibility_action"
+    )
+
+    /**
+     * 定时任务上下文：当前静默任务预授权的 allowTools（目录 key，如 workdir:write）；
+     * 仅执行线程内有效。
+     */
+    private val scheduledAllowedTools = ThreadLocal<Set<String>>()
+
+    /**
+     * 在定时任务上下文中执行 block：预授权集合进 ThreadLocal，finally 确保清理，
+     * 避免泄漏到主对话或下一轮任务。由 TaskService.runTimerTask 包裹 LocalEngine.chat 调用。
+     */
+    inline fun <T> runWithScheduledTools(allowTools: Set<String>, block: () -> T): T {
+        scheduledAllowedTools.set(allowTools)
+        try {
+            return block()
+        } finally {
+            scheduledAllowedTools.remove()
+        }
+    }
+
+    /**
+     * 工具执行门禁（v3 受控例外），供 ToolExecutor.execute 入口调用：
+     * 1. 永禁工具一律拒绝；
+     * 2. 定时任务上下文：放行 ALLOWED_TOOLS + 本任务预授权的 allowTools；
+     *    目录 key 或裸工具名均认。
+     * 3. 普通上下文：只放行 ALLOWED_TOOLS。
+     */
+    fun isToolPermitted(toolName: String): Boolean {
+        if (toolName in FORBIDDEN_FOREVER_TOOLS) return false
+        val scheduled = scheduledAllowedTools.get()
+        return if (scheduled != null) {
+            toolName in ALLOWED_TOOLS || toolName in scheduled ||
+                scheduled.any { it.substringBefore(':') == toolName }
+        } else {
+            toolName in ALLOWED_TOOLS
+        }
+    }
 
     // ============ 3. Qwen3-27B 去审核版防越权工具调用铁律 ============
     /**

@@ -98,8 +98,9 @@ object ToolExecutor {
         val legacy = LEGACY_TOOL_ACTION[name.trim('_')]
         val n = if (legacy != null) legacy.first
                 else LocalEngine.toolRegistry.firstOrNull { it.name == name }?.name ?: name.trim('_')
-        // 大肥鱼 v2: 白名单硬门禁（最后一道防线）——未下发的工具一律拒绝执行，防模型凭记忆硬猜工具名（如 shell_exec）
-        if (n !in DafeiyuConfig.ALLOWED_TOOLS) {
+        // 大肥鱼 v3: 白名单硬门禁（最后一道防线）——未下发的工具一律拒绝执行，防模型凭记忆硬猜工具名（如 shell_exec）；
+        // 定时任务上下文由 isToolPermitted 放行本任务预授权的 allowTools（永禁工具除外）
+        if (!DafeiyuConfig.isToolPermitted(n)) {
             return "{\"error\": \"该工具未启用，仅允许调用已授权工具: ${DafeiyuConfig.ALLOWED_TOOLS.joinToString()}\"}"
         }
         val arg = if (legacy != null) {
@@ -762,6 +763,10 @@ object ToolExecutor {
             if (k.isEmpty()) return "参数错误: allow_tools 第 ${i + 1} 项缺少 key"
             if (k !in SecurityConfig.ALLOW_CATALOG) {
                 return "参数错误: allow_tools key \"$k\" 不在授权目录 ALLOW_CATALOG 中, 请改用以下合法 key 之一: ${SecurityConfig.ALLOW_CATALOG.keys.joinToString(", ")}。请修正参数后重新调用 timer_task_create。"
+            }
+            // 大肥鱼 v3: 永禁工具从源头阻断——定时任务即使经用户批准也不得在后台静默执行 Shell/SSH/无障碍
+            if (k.substringBefore(':') in DafeiyuConfig.FORBIDDEN_FOREVER_TOOLS) {
+                return "参数错误: allow_tools key \"$k\" 是永禁工具，定时任务不得静默执行。请去掉该项。"
             }
             if (reqs.none { it.first == k }) {
                 reqs.add(k to r)
