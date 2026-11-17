@@ -1,3 +1,4 @@
+import java.util.Base64
 import java.util.Properties
 
 plugins {
@@ -68,6 +69,12 @@ android {
         // 大肥鱼 v6: 二号线端点与 Key 注入（与一号线同款 env 优先、local.properties 兜底；均为空时为空串）
         val dafeiyuNode2ApiKey = envOrProp("DAFEIYU_NODE2_API_KEY", "dafeiyuNode2ApiKey")
         val dafeiyuNode2BaseUrl = envOrProp("DAFEIYU_NODE2_BASE_URL", "dafeiyuNode2BaseUrl")
+        // 大肥鱼 v7: 扩展线路池（DAFEIYU_EXTRA_NODES，单行 JSON 数组）——编译期 Base64 编码成
+        // DAFEIYU_EXTRA_NODES_B64，JSON 里的双引号不再经过 buildConfigField 的字符串转义，
+        // 彻底避免引号炸穿 BuildConfig.java；Secret 未配时为空串，App 端安静跳过
+        val dafeiyuExtraNodes = envOrProp("DAFEIYU_EXTRA_NODES", "dafeiyuExtraNodes")
+        val dafeiyuExtraNodesB64 = Base64.getEncoder()
+            .encodeToString(dafeiyuExtraNodes.toByteArray(Charsets.UTF_8))
         if (dafeiyuApiKey.isEmpty()) {
             logger.warn("DAFEIYU_API_KEY missing — 大肥鱼默认供应商将无 Key，需用户在设置页手动粘贴")
         }
@@ -76,6 +83,7 @@ android {
         buildConfigField("String", "DAFEIYU_BASE_URL", buildConfigStr(dafeiyuBaseUrl))
         buildConfigField("String", "DAFEIYU_NODE2_API_KEY", buildConfigStr(dafeiyuNode2ApiKey))
         buildConfigField("String", "DAFEIYU_NODE2_BASE_URL", buildConfigStr(dafeiyuNode2BaseUrl))
+        buildConfigField("String", "DAFEIYU_EXTRA_NODES_B64", buildConfigStr(dafeiyuExtraNodesB64))
         ndk {
             abiFilters += listOf(project.findProperty("nyralAbi") as String? ?: "arm64-v8a")
         }

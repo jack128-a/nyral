@@ -1,6 +1,20 @@
 package io.github.aixtin.nyral
 
 import android.content.Context
+import android.util.Base64
+import org.json.JSONArray
+
+/**
+ * 扩展线路预设（三号、四号及以后）：仅由 DAFEIYU_EXTRA_NODES 的 JSON 数组解析而来，
+ * 绝不硬编码。
+ */
+data class NodePreset(
+    val id: String,
+    val name: String,
+    val baseUrl: String,
+    val modelId: String,
+    val apiKey: String
+)
 
 /**
  * 大肥鱼 fork 的集中配置（隔离扩展法）。
@@ -40,6 +54,40 @@ object DafeiyuConfig {
         val base = raw.trim().trimEnd('/')
         if (base.isEmpty()) return ""
         return if (base.endsWith("/v1")) base else "$base/v1"
+    }
+
+    // ============ 1c. 扩展线路池（v7：通用多线路，形态 C） ============
+    /**
+     * 解析扩展线路池：DAFEIYU_EXTRA_NODES 是单行 JSON 数组（编译期 Base64 注入为
+     * DAFEIYU_EXTRA_NODES_B64，防引号转义）。Secret 未配（空串）、解码失败或 JSON 非法时
+     * 一律返回空列表，安静跳过，绝不抛错、绝不影响 1、2 号线。
+     * 字段缺失或空白的条目直接丢弃。
+     */
+    fun parseExtraNodes(): List<NodePreset> {
+        val encoded = BuildConfig.DAFEIYU_EXTRA_NODES_B64.trim()
+        val json = if (encoded.isBlank()) {
+            ""
+        } else {
+            runCatching {
+                String(Base64.decode(encoded, Base64.DEFAULT), Charsets.UTF_8)
+            }.getOrNull().orEmpty()
+        }
+        if (json.isBlank()) return emptyList()
+        return runCatching {
+            val array = JSONArray(json)
+            buildList {
+                for (i in 0 until array.length()) {
+                    val obj = array.optJSONObject(i) ?: continue
+                    val id = obj.optString("id").trim()
+                    val name = obj.optString("name").trim()
+                    val baseUrl = normalizeV1BaseUrl(obj.optString("baseUrl"))
+                    val modelId = obj.optString("modelId").trim()
+                    val apiKey = obj.optString("apiKey")
+                    if (listOf(id, name, baseUrl, modelId, apiKey).any { it.isBlank() }) continue
+                    add(NodePreset(id = id, name = name, baseUrl = baseUrl, modelId = modelId, apiKey = apiKey))
+                }
+            }
+        }.getOrElse { emptyList() }
     }
 
     // ============ 2. 工具白名单 ============
@@ -286,9 +334,10 @@ object DafeiyuConfig {
 
     /**
      * 首次启动种子（由 ApiConfig.init 调用，每个 Activity.onCreate 都会走一次，本函数幂等）：
-     * - 两条线逐条按固定 id 注册（ApiConfig.ensureProvider）：不存在时插入，已存在时仅在 Key 为空时补 Key，
+     * - 三条线逐条按固定 id 注册（ApiConfig.ensureProvider）：不存在时插入，已存在时仅在 Key 为空时补 Key，
      *   绝不覆盖用户改过的 base/model/label；Key 此后只活在加密存储里；
      * - 二号线 Base 未配置（Secret 未配）时不注册，等配好后的构建自然出现；
+     * - 扩展池（v7）同款逐条注册，池为空时不注册任何扩展线路；
      * - 用户若已手动加过同地址的供应商（自定义），不再重复插一条；
      * - 从未选过供应商（全新安装）时默认切到一号线；之后绝不覆盖用户的手动选择。
      */
@@ -306,6 +355,18 @@ object DafeiyuConfig {
                 NODE2_PROVIDER_ID, NODE2_PROVIDER_NAME,
                 NODE2_BASE_URL, node2Key, NODE2_MODEL_ID
             )
+        }
+        // v7: 扩展池逐条注册（与二号线同款幂等 + 手动同地址去重；
+        // 池为空时 parseExtraNodes 为空列表）
+        for (preset in parseExtraNodes()) {
+            val hasManualSameBase = ApiConfig.providers().any {
+                it.id != preset.id && normalizeV1BaseUrl(it.defaultBase) == preset.baseUrl
+            }
+            if (!hasManualSameBase) {
+                ApiConfig.ensureProvider(
+                    preset.id, preset.name, preset.baseUrl, preset.apiKey, preset.modelId
+                )
+            }
         }
         val prefs = context.getSharedPreferences(API_CONFIG_PREFS, Context.MODE_PRIVATE)
         if (!prefs.contains(API_CONFIG_CURRENT_KEY)) {
