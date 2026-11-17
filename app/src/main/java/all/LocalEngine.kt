@@ -45,9 +45,20 @@ object LocalEngine {
     // 单次完整回复输出上限(字符): 防模型超长输出/多轮 tool 累积导致上下文顶爆窗口; 超限截断并提示
     private const val MAX_OUTPUT_CHARS = 60000
 
-    // ===== v8 直连与断流修法 =====
-    /** 单次生成 token 上限：配合服务端 --reasoning-budget 2048，把单次生成压进 3–5 分钟 */
-    private const val MAX_OUTPUT_TOKENS = 4096
+    // ===== v9 空气泡修复 =====
+    /** 单次生成 token 上限：v9 从 4096 提到 12288（氢气定案：配合服务端 -c 32768 与 --reasoning-budget 3072，
+     *  扣掉思考预算后仍保底留 9216 给正文；防复读死循环，不直接拉满） */
+    private const val DEFAULT_MAX_TOKENS = 12288
+    /** 空气泡自动续写单次生成上限：收尾补全只求短平快正文，用小预算 */
+    private const val CONTINUATION_MAX_TOKENS = 4096
+    /** 空气泡自动续写最多次数：仅 1 次，避免无限续写烧额度 */
+    private const val MAX_EMPTY_CONTINUATION_RETRIES = 1
+    /** 自动续写携带的截断思考尾部长度（字符）：只取尾部，避免把整段思考塞回上下文 */
+    private const val CONTINUATION_THINK_TAIL_CHARS = 1500
+    /** v9 推理精炼铁律：追加到 Qwen3 系统提示词末尾，防模型在 <think> 里复述工具 JSON 把预算吃光 */
+    private const val QWEN3_REASONING_REFINEMENT = "\n【推理精炼铁律】\n" +
+        "1. <think> 内的推演必须直击关键结论，严禁在思考过程中逐字复述或抄写工具返回的原始 JSON 数据。\n" +
+        "2. 单轮思考控制在 1500 字以内；一旦获取足够工具结果，必须立即闭合 </think> 并输出结构化最终答复，严禁思考完直接结束输出。\n"
     /** 流式建连超时(ms)：v8 从 20000 收紧到 15000，死 IP 快失败快切换 */
     private const val STREAM_CONNECT_TIMEOUT_MS = 15000
     /** 流式读超时(ms)：v8 从 60000 放到 300000，工具调用静默期不再提前掐断 */
@@ -373,6 +384,12 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
         fun onTool(name: String, arg: String)  // 正在执行工具
         fun onToolResult(name: String, result: String) {}  // 工具执行完成(结果回填, 默认空实现)
         fun onDelta(text: String)      // 正文增量(流式)
+        /** v9 状态微提示：非正文的状态行弱提示（如“思考过程较长，正在自动总结正文...”），
+         *  默认空实现：非 UI 回调可不接。 */
+        fun onStatusNote(text: String) {}
+        /** v9 空气泡兜底：整轮结束正文仍为空时通知 UI 显示提示与“继续生成”，
+         *  默认空实现：非 UI 回调可不接。 */
+        fun onEmptyFinalResponse(reason: EmptyResponseReason, tip: String) {}
         fun onDone(reply: String)
         fun onError(msg: String)
     }
@@ -380,6 +397,9 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
     /** 取消原因分型(2026-11-15): 用户手点停止 / 切会话 / 上游超时自动收口 走同一取消出口,
      *  旧实现三者共用"用户停止输出"文案, 日志与气泡提示无法区分, 排查时会把超时误判成用户操作。 */
     enum class CancelReason { NONE, USER_STOP, SESSION_SWITCH, STALL_TIMEOUT }
+
+    /** v9 防空气泡：最终正文为空的原因分型（供 UI 兜底提示与“继续生成”使用） */
+    enum class EmptyResponseReason { LENGTH_TRUNCATED, PREMATURE_STOP, MAX_ROUNDS_REACHED }
 
     /** 上游卡死收口: 与用户取消一样保留 partial, 但原因记为 STALL_TIMEOUT(气泡提示"上游超时未响应") */
     class StallTimeoutException(val partial: String, val stage: String) : CancellationException("stream stalled: $stage")
@@ -758,6 +778,8 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
             val messages = buildRouteMessages(context, history, attachments, memInject, patHint)
             var toolCount = 0
             var retriedEmpty = false
+            // v9 空气泡自动续写已用次数（最多 1 次）
+            var continuationRetryCount = 0
             // 文本协议降级模式下已注入完整 schema 的工具集
             val injectedTools = mutableSetOf<String>()
             // Top N 动态装载(2026-09-16): 经 tool_detail 激活的冷门工具, 本轮内额外注入回调列表
@@ -931,6 +953,31 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
                             "(如记忆与当前事实冲突, 以当前信息为准; 若确实无关可忽略):\n${res.restartWith}"))
                     continue
                 }
+                // v9 防空气泡第 2 道：finish_reason=="length" 且正文为空、但思考非空（思考吃光预算致空气泡），
+                // 静默自动续写一次：截断思考尾部作 assistant 消息 + 强制收尾指令，无工具小预算补发
+                // （条件拆两步：单条 if 不超 3 个子句，防 Detekt ComplexCondition）
+                val noVisibleText = toolCalls.isEmpty() && res.accumulated.isBlank()
+                val lengthCut = res.thinkingText.isNotBlank() && res.lastFinishReason == "length"
+                if (noVisibleText && lengthCut && continuationRetryCount < MAX_EMPTY_CONTINUATION_RETRIES) {
+                    continuationRetryCount++
+                    retriedEmpty = true   // 续写已是兜底重试，不再触发下方通用空回复重试，避免重复发请求
+                    android.util.Log.w("Nyral", "v9 空气泡自动续写 thinkChars=${res.thinkingText.length} lastFinishReason=${res.lastFinishReason}")
+                    try { cb.onStatusNote("思考过程较长，正在自动总结正文...") } catch (_: Throwable) {}
+                    messages.put(JSONObject().put("role", "assistant").put("content",
+                        "<think>${res.thinkingText.takeLast(CONTINUATION_THINK_TAIL_CHARS)}</think>\n"))
+                    messages.put(JSONObject().put("role", "user").put("content",
+                        "你的推理已达长度上限并已结束。请立刻跳过思考过程，直接向用户输出最终总结答复。"))
+                    val resCont = streamOnce(context, messages, cb, answerGate, injectedTools, hotLoaded,
+                        forceNoTools = true, maxTokens = CONTINUATION_MAX_TOKENS, taskId = taskId)
+                    if (resCont.accumulated.isNotBlank()) {
+                        full.append(capOut(resCont.accumulated))
+                        PatternStore.record(context, patSig, toolSeqUsed.toList(), ok = true)
+                        cb.onDone(scrubXmlLeak(full.toString()))
+                        return
+                    }
+                    // 续写仍为空：不再循环重发，落到下方最终空检查（第 3 道兜底提示）
+                    android.util.Log.w("Nyral", "v9 空气泡自动续写仍为空，落入最终兜底")
+                }
                 if (toolCalls.isEmpty() && res.accumulated.isBlank() && toolCount > 0 && !retriedEmpty) {
                     // 模型对工具结果无有效输出: 引导重试一次, 避免"调了工具却没结果"
                     retriedEmpty = true
@@ -939,8 +986,26 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
                     continue
                 }
                 full.append(capOut(res.accumulated))
+                // v9 防空气泡第 3 道：整轮结束正文仍为空，通知 UI 显示兜底提示与“继续生成”，不再静默空气泡
+                val finalText = scrubXmlLeak(full.toString())
+                if (finalText.trim().isEmpty()) {
+                    val reason = when {
+                        res.lastFinishReason == "length" -> EmptyResponseReason.LENGTH_TRUNCATED
+                        toolCount >= MAX_TOOL_CALLS -> EmptyResponseReason.MAX_ROUNDS_REACHED
+                        else -> EmptyResponseReason.PREMATURE_STOP
+                    }
+                    val tip = when (reason) {
+                        EmptyResponseReason.LENGTH_TRUNCATED ->
+                            "思考过程过长（已思考 ${res.thinkingText.length} 字），达到单次输出上限，未生成最终正文。"
+                        EmptyResponseReason.MAX_ROUNDS_REACHED ->
+                            "工具调用已达单次步数上限，请点击继续生成总结。"
+                        EmptyResponseReason.PREMATURE_STOP ->
+                            "模型已完成分析与工具调用，但未输出总结正文。"
+                    }
+                    try { cb.onEmptyFinalResponse(reason, tip) } catch (_: Throwable) {}
+                }
                 PatternStore.record(context, patSig, toolSeqUsed.toList(), ok = true)
-                cb.onDone(scrubXmlLeak(full.toString()))
+                cb.onDone(finalText)
                 return
             }
         } catch (e: NoToolsException) {
@@ -1070,6 +1135,7 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
         injectedTools: MutableSet<String>,
         hotLoaded: Set<String>,
         forceNoTools: Boolean = false,
+        maxTokens: Int = DEFAULT_MAX_TOKENS,
         taskId: Long = 0L
     ): StreamResult {
         val body = JSONObject()
@@ -1077,8 +1143,8 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
         body.put("messages", messages)
         body.put("temperature", 0.3)
         body.put("stream", true)
-        // v8: 单次生成 token 上限（服务端 reasoning-budget 2048 限思考，本端限总输出），压进 3–5 分钟
-        body.put("max_tokens", MAX_OUTPUT_TOKENS)
+        // v9: 单次生成 token 上限（默认 12288；空气泡自动续写走小预算 4096）
+        body.put("max_tokens", maxTokens)
         // 原生 function calling: 请求携带 tools(模型支持时); probe 失败过则降级纯文本
         val useTools = !toolsDegradedNow() && !forceNoTools
         if (useTools) body.put("tools", buildToolsArray(context, hotLoaded))
@@ -1161,6 +1227,10 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
         }
         // 大肥鱼: 字面 <think> 流式剥离器（Qwen3 去审核版可能把思考写进 content 通道，而非 reasoning_content）
         val thinkStripper = DafeiyuConfig.LiteralThinkStripper()
+        // v9 防空气泡：本轮思考文本累计（reasoning_content + 字面 <think> 双通道）与最后一个非空 finish_reason，
+        // 供 Agent 主循环判定“思考吃光预算致空气泡”并触发自动续写
+        val thinkBuffer = StringBuilder()
+        var lastFinishReason = ""
         // 看门狗兜底(2026-11-15 修正): 原实现挂在 reader 建立之后才启动, "写请求体 + 等响应头"整段裸奔。
         // 上游接受连接却不回包时, responseCode 只能干等 readTimeout(60s) 抛 SocketTimeoutException,
         // 再被转成 RetryableException 静默重连一次 => 用户侧实测 120s+ 无任何提示, 这才是"卡住"的真身。
@@ -1318,7 +1388,7 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
                 // "流是否完整" 判定恒成立 → 断流截断参数仍被当完整参数 drain 执行。必须先区分 null 与真值。
                 val frRaw = choice.opt("finish_reason")
                 val fr = if (frRaw == null || frRaw == JSONObject.NULL) "" else frRaw.toString()
-                if (fr.isNotBlank()) sawFinishReason = true
+                if (fr.isNotBlank()) { sawFinishReason = true; lastFinishReason = fr }
                 if (fr == "tool_calls") finishedByToolCalls = true
                 val delta = choice.optJSONObject("delta")
                 // 原生 function calling: delta.tool_calls 增量(分片 arguments)
@@ -1355,6 +1425,7 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
                         cb.onThinkingStart()
                     }
                     markProgress()
+                    thinkBuffer.append(rText)
                     cb.onThinkingDelta(rText)
                     // 2026-11-09 修复: 同帧 reasoning_content 与 content 并存时, 原实现 continue 直接跳过正文分支
                     // (NVIDIA nemotron 等模型首帧常同时给思考尾巴+正文开头), 导致每次回答首字被吞
@@ -1367,7 +1438,7 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
                 // 正文才继续走原流程；剥离器内部维护 inLiteralThink + 标签残尾缓冲，跨 chunk 截断的标签不丢字。
                 val contentText = thinkStripper.process(text,
                     onThinkStart = { if (mode != MODE_THINKING) { mode = MODE_THINKING; cb.onThinkingStart() } },
-                    onThinkDelta = { cb.onThinkingDelta(it) },
+                    onThinkDelta = { thinkBuffer.append(it); cb.onThinkingDelta(it) },
                     onThinkEnd = { if (mode == MODE_THINKING) { mode = MODE_NONE; cb.onThinkingEnd() } })
                 if (contentText.isEmpty()) continue
                 // content 出现即思考结束（仅当真有正文且剥离器未正处思考段内）
@@ -1726,8 +1797,13 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
             activeConn = null
             activeConns.clear()
         }
+        // v9 防空气泡第 1 道：流结束时仍在 <think> 内（有开标签无闭合，被 max_tokens 截断），
+        // 记一条日志供定位；思考文本不倒进正文气泡（保持正文干净），只保留字数统计与 finish_reason 供主循环判定
+        if (thinkStripper.inThink) {
+            android.util.Log.w("Nyral", "v9 流结束仍在 <think> 内（未闭合，疑似 max_tokens 截断） thinkChars=${thinkBuffer.length} lastFinishReason=$lastFinishReason")
+        }
         return StreamResult(accumulated.toString(), toolCalls, restartOut.firstOrNull(), toolCallIds, dsmlRaw,
-            interrupted = interruptedOut)
+            interrupted = interruptedOut, thinkingText = thinkBuffer.toString(), lastFinishReason = lastFinishReason)
     }
 
     /** 判断 4xx 响应是否疑似"不支持 tools" */
@@ -2132,7 +2208,7 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
             "记忆使用: 若所需信息可能来自与此用户过去的对话且当前上下文未提及, 应调用 memory_search 查证后再回答; 工具调用过程中拿不准时也先查记忆再作答。\n" +
             (if (memInject.isNullOrBlank()) "" else memInject + "\n") +
             (if (patHint.isNullOrBlank()) "" else patHint + "\n") + fmtRules + mdBan + emojiBlock + visionBlock +
-                DafeiyuConfig.QWEN3_TOOL_GUARDRAIL))
+                DafeiyuConfig.QWEN3_TOOL_GUARDRAIL + QWEN3_REASONING_REFINEMENT))
         if (attachments.isEmpty()) {
             messages.put(JSONObject().put("role", "user").put("content", history))
         } else {
@@ -2276,7 +2352,11 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
         /** 非 null 表示本轮工具调用来自 DSML 泄漏拦截(content 通道文本解析), 回填需走文本链 */
         val dsmlRaw: String? = null,
         /** 流被中断(连接断开/EOF)但已有部分输出: 主循环据此续跑重连 */
-        val interrupted: Boolean = false
+        val interrupted: Boolean = false,
+        /** v9: 本轮思考文本累计（reasoning_content + 字面 <think> 双通道），供空气泡判定与自动续写 */
+        val thinkingText: String = "",
+        /** v9: 本轮最后一个非空 finish_reason（如 "stop"/"length"/"tool_calls"），供空气泡判定 */
+        val lastFinishReason: String = ""
     ) {
         fun idAt(idx: Int): String? = toolCallIds.getOrNull(idx)
     }

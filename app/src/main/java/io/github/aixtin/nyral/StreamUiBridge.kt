@@ -15,6 +15,8 @@ import kotlinx.coroutines.launch
  */
 /** 合帧窗口(ms): 与屏幕刷新帧对齐, 高频 delta 的 UI 侧工作量按帧封顶 */
 private const val FLUSH_FRAME_MS = 16L
+/** v9 空气泡“继续生成”静默指令：不展示为用户消息，直接追加进历史让模型输出最终答复 */
+private const val CONTINUE_AFTER_EMPTY = "请基于以上工具结果和思考，直接输出最终答复。"
 
 internal class StreamUiBridge(
     private val activity: MainActivity,
@@ -43,6 +45,8 @@ internal class StreamUiBridge(
 
     /** 一批增量交给 holder: 正文掩码/阶段推进与旧逐 token 路径语义等价, 仅合并执行 */
     private fun dispatch(holder: AiBubbleHolder, think: String?, content: String?) {
+        // v9: 正文开始流动即撤掉状态微提示（自动续写中），状态行回到正常片段轮播
+        if (content != null) holder.hideStatusNote()
         think?.let { holder.appendThinking(it) }
         if (content != null && !LocalEngine.cancelRequested) {
             val masked = activity.maskAiEmojiMarks(content)
@@ -176,6 +180,24 @@ internal class StreamUiBridge(
                 synchronized(bufLock) { pendingContent.append(text) }
                 scheduleFlush(epoch, holder)
             }
+            /** v9 状态微提示：状态行置顶显示弱提示（如自动续写中），正文流动后自动清除 */
+            override fun onStatusNote(text: String) {
+                uiScope.launch {
+                    if (!session.isCurrent(epoch)) return@launch
+                    holder.showStatusNote(text)
+                }
+            }
+            /** v9 空气泡兜底：正文为空时在气泡底部显示提示 +“继续生成”，点击后静默续写 */
+            override fun onEmptyFinalResponse(reason: LocalEngine.EmptyResponseReason, tip: String) {
+                android.util.Log.w("Nyral", "onEmptyFinalResponse reason=$reason tip=$tip")
+                uiScope.launch {
+                    if (!session.isCurrent(epoch)) return@launch
+                    holder.showEmptyFallback(tip)
+                    holder.onEmptyContinueClick = {
+                        activity.continueFromEmpty(CONTINUE_AFTER_EMPTY)
+                    }
+                }
+            }
             override fun onDone(reply: String) {
                 android.util.Log.i("Nyral", "onDone len=${reply.length}")
                 ChatProbe.onFinish("", LocalEngine.cancelRequested, reply)
@@ -198,6 +220,7 @@ internal class StreamUiBridge(
                     // 代际校验(阶段2): 切会话/新请求已接管, 迟到回调直接丢弃, 不碰 holder/不写库/不动状态
                     if (!session.isCurrent(epoch)) return@launch
                     holder.hideReconnectNotice()   // v8: 收尾撤掉重连指示（若曾显示）
+                    holder.hideStatusNote()   // v9: 收尾撤掉状态微提示（若曾显示）
                     drain(holder, epoch)   // 收尾前排空合帧缓冲: 排队中的思考/正文增量先上屏
                     // 2026-11-06: onStop/onDestroy 可能已落过草稿条, 先摘掉再由下面的正常路径写完整回复
                     activity.discardStreamingDraft()
@@ -330,6 +353,7 @@ internal class StreamUiBridge(
                 uiScope.launch {
                     if (!session.isCurrent(epoch)) return@launch
                     holder.hideReconnectNotice()   // v8: 出错撤掉重连指示（若曾显示）
+                    holder.hideStatusNote()   // v9: 出错撤掉状态微提示（若曾显示）
                     drain(holder, epoch)   // 出错前排空缓冲, 已收到的增量不悬空
                     activity.discardStreamingDraft()   // 2026-11-06: 出错不保留草稿, 避免半截 AI 行
                     // 2026-11-08 缺陷修复: 断流/超时/5xx 时引擎已产出半截正文, 旧实现 showError 后直接移除

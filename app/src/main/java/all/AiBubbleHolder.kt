@@ -160,6 +160,12 @@ internal class AiBubbleHolder(private val host: MainActivity) : TypewriterTickab
     private var waitStartMs = 0L                // 等待计时起点(思考/工具态), 0=未激活
     private var waitStage = ""                  // 等待阶段名("思考"/"工具"), 非空=计时激活
     private var reconnectNotice: String? = null // v8 重连指示：非空时状态行置顶显示，恢复后清除
+    private var statusNote: String? = null // v9 状态微提示：非空时状态行置顶显示（如“思考过程较长，正在自动总结正文...”），有正文增量后清除
+    /** v9 空气泡兜底操作条：默认 GONE，正文为空时显示提示 +“继续生成”按钮 */
+    private var emptyFallbackBar: View? = null
+    private var emptyFallbackTip: TextView? = null
+    /** v9 空气泡“继续生成”点击回调（由 StreamUiBridge 设置，触发静默续写） */
+    var onEmptyContinueClick: (() -> Unit)? = null
 
     // 输出中暗色态(解决闪感): AI 流式输出期间气泡背景+文字亮度压低(暗色降低逐字刷新感知),
     // 输出完成(finishTypeRender)后渐亮回原始色, 视觉上"安静打字 -> 完成后亮起";
@@ -288,6 +294,66 @@ internal class AiBubbleHolder(private val host: MainActivity) : TypewriterTickab
         reconnectNotice = null
         lastSnippet = null
         showSnippet()
+    }
+
+    /** v9 状态微提示（主线程调用）：状态行置顶显示弱提示，正文增量到达后自动清除 */
+    fun showStatusNote(text: String) {
+        statusNote = text
+        ensureStatusRow()
+        statusSealed = false
+        lastSnippet = null
+        showSnippet()
+    }
+
+    /** v9 状态微提示清除：正文开始流动或收尾时调用，状态行回到正常片段轮播 */
+    fun hideStatusNote() {
+        if (statusNote == null) return
+        statusNote = null
+        lastSnippet = null
+        showSnippet()
+    }
+
+    /** v9 空气泡兜底操作条：正文为空时在气泡底部显示提示 +“继续生成”按钮；正常有正文时保持隐藏 */
+    fun showEmptyFallback(tip: String) {
+        if (emptyFallbackBar == null) {
+            val bar = LinearLayout(host).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                    topMargin = host.dp(Ui.SP2)
+                }
+            }
+            val tipView = TextView(host).apply {
+                textSize = 13f
+                setTextColor(THINK_TEXT)
+                maxLines = 3
+                ellipsize = TextUtils.TruncateAt.END
+            }
+            val btn = android.widget.Button(host).apply {
+                text = "继续生成"
+                textSize = 14f
+                setOnClickListener {
+                    hideEmptyFallback()
+                    onEmptyContinueClick?.invoke()
+                }
+            }
+            bar.addView(tipView, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            bar.addView(btn, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = host.dp(Ui.SP2)
+            })
+            emptyFallbackBar = bar
+            emptyFallbackTip = tipView
+            bubbleBox?.addView(bar)
+        }
+        emptyFallbackTip?.text = tip
+        emptyFallbackBar?.visibility = View.VISIBLE
+    }
+
+    /** v9 空气泡兜底操作条隐藏（“继续生成”点击后或新一轮开始时调用） */
+    fun hideEmptyFallback() {
+        emptyFallbackBar?.visibility = View.GONE
     }
 
     /** 工具参数流式进度(主线程调用): 参数每增长若干字节刷新一次, 正文已在流式输出时不打扰 */
@@ -944,9 +1010,10 @@ internal class AiBubbleHolder(private val host: MainActivity) : TypewriterTickab
         statusWrap = addChatBubble(c)
     }
 
-    /** 当前应展示的片段: v8 重连指示置顶，其次活跃思考 tail / 最新工具 */
+    /** 当前应展示的片段: v8 重连指示置顶，v9 状态微提示其次，其次活跃思考 tail / 最新工具 */
     private fun currentSnippet(): String? {
         reconnectNotice?.let { return it }
+        statusNote?.let { return it }
         activeThinking?.let { b ->
             if (!b.collapsed) {
                 return snippet(tailThinking(b).replace("\n", " ").trim())

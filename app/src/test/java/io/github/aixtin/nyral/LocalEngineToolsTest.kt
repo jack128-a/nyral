@@ -205,9 +205,10 @@ class LocalEngineToolsTest {
 
     private fun newStreamResult(calls: List<Pair<String, String>>, ids: List<String>): Any {
         val cls = streamResultClass()
-        val ctor = cls.declaredConstructors.first { it.parameterCount == 6 }
+        // v9: StreamResult 新增 thinkingText + lastFinishReason（防空气泡），主构造器改为 8 参
+        val ctor = cls.declaredConstructors.first { it.parameterCount == 8 }
         ctor.isAccessible = true
-        return ctor.newInstance("", calls, null, ids, null, false)
+        return ctor.newInstance("", calls, null, ids, null, false, "", "")
     }
 
     private fun buildAssistantToolMessage(res: Any, calls: List<Pair<String, String>>): JSONObject {

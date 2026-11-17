@@ -217,6 +217,40 @@ internal class ChatFlowController(
     }
 
     /**
+     * v9 空气泡“继续生成”静默续写：正文为空时由气泡兜底条触发。
+     * 与 retryLast 同构（重建历史+流式行+引擎请求），但指令直接追加进历史文本，
+     * 不渲染用户气泡、不落库用户消息（静默）；末条不必是用户消息（空回复后末条是空 AI 行）。
+     * 返回 false 表示正忙（调用方保留兜底条）。
+     */
+    internal fun continueFromEmpty(instruction: String): Boolean {
+        if (session.aiBusy) return false
+        LogStore.i(LogStore.MAIN, "空气泡继续生成: 静默续写 会话=${activity.currentSessionId}")
+        TokenStore.currentSessionId = activity.currentSessionId
+        LocalEngine.cancelRequested = false
+        session.markBusy()
+        activity.scrollUserScrolled = false
+        try { TaskService.start(activity) } catch (e: Exception) { LogStore.e(LogStore.MAIN, "前台服务启动失败: ${e.message}") }
+        val history = activity.buildHistory() + "\n" + instruction
+        val epoch = session.beginRequest()
+        activity.replySessionId = activity.currentSessionId
+        activity.attachBtn2.visibility = View.GONE
+        activity.attachBtn.visibility = View.GONE
+        activity.sendBtn.visibility = View.GONE
+        activity.stopBtn.visibility = View.VISIBLE
+        activity.stopBtn.isEnabled = true
+        activity.stopBtn.alpha = 1f
+        executor.execute {
+            val holder = AiBubbleHolder(activity)
+            activity.activeAiHolder = holder
+            activity.streamDraftIndex = -1
+            val streamUi = StreamUiBridge(activity, session, uiScope)
+            uiScope.launch { streamUi.prepareStreamingRow(holder) }
+            LocalEngine.chat(activity, history, streamUi.createCallback(epoch, holder), emptyList())
+        }
+        return true
+    }
+
+    /**
      * 调试服务入口: 由 DebugServer(/v1/chat) 调用, 走与真实发送一致的完整链路
      * (渲染气泡 -> 落库 -> 构建历史 -> LocalEngine 工具循环 -> SSE 事件转发)。
      * 必须在主线程调用。返回 false 表示 AI 正忙, 请求被拒绝。

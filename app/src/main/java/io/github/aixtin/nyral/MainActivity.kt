@@ -2352,6 +2352,8 @@ internal fun applyBottomOcclusion(drawerH: Int) {
     private val chatFlow by lazy { ChatFlowController(this, session, uiScope, executor) }
 
     internal fun doSend(attachments: List<LocalEngine.Attachment>) = chatFlow.doSend(attachments)
+    /** v9 空气泡“继续生成”：静默续写（指令追加进历史，不展示用户气泡），由 StreamUiBridge 兜底条触发 */
+    internal fun continueFromEmpty(instruction: String): Boolean = chatFlow.continueFromEmpty(instruction)
 
     internal fun submitDebugChat(text: String, attachments: List<LocalEngine.Attachment> = emptyList(), onDone: () -> Unit): Boolean =
         chatFlow.submitDebugChat(text, attachments, onDone)
