@@ -1,4 +1,4 @@
-package io.github.aixtin.nyral
+package all
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -12,6 +12,8 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
+import io.github.aixtin.nyral.MainActivity
+import io.github.aixtin.nyral.R
 
 /**
  * 流式生成保活前台服务（v8）。
@@ -36,7 +38,7 @@ class StreamKeepAliveService : Service() {
                 } else {
                     context.startService(intent)
                 }
-            } catch (e: Exception) {
+            } catch (e: SecurityException) {
                 android.util.Log.w(TAG, "保活服务启动失败: ${e.message}")
             }
         }
@@ -45,7 +47,7 @@ class StreamKeepAliveService : Service() {
         fun stop(context: Context) {
             try {
                 context.stopService(Intent(context, StreamKeepAliveService::class.java))
-            } catch (e: Exception) {
+            } catch (e: SecurityException) {
                 android.util.Log.w(TAG, "保活服务停止失败: ${e.message}")
             }
         }
@@ -93,7 +95,7 @@ class StreamKeepAliveService : Service() {
                 setReferenceCounted(false)
                 acquire()
             }
-        } catch (e: Exception) {
+        } catch (e: SecurityException) {
             android.util.Log.w(TAG, "唤醒锁获取失败: ${e.message}")
         }
         try {
@@ -102,7 +104,7 @@ class StreamKeepAliveService : Service() {
                 setReferenceCounted(false)
                 acquire()
             }
-        } catch (e: Exception) {
+        } catch (e: SecurityException) {
             android.util.Log.w(TAG, "WiFi 锁获取失败: ${e.message}")
         }
     }
@@ -150,6 +152,9 @@ class StreamKeepAliveService : Service() {
             .build()
     }
 
+    // 前台服务启动兜底：个别 ROM 抛非标准 RuntimeException/Binder 异常时仍不崩溃，
+    // 故保留宽泛捕获（氢气定案：销毁/启动兜底路径崩溃是最差结果）。
+    @Suppress("TooGenericExceptionCaught")
     private fun startForegroundCompat() {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

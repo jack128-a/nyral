@@ -13,6 +13,9 @@ import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.SocketException
 import java.util.concurrent.CancellationException
+import all.CloudflareOptDns
+import all.CloudflareSniSocketFactory
+import all.StreamKeepAliveService
 
 private const val MS_PER_SEC = 1000L
 
@@ -351,6 +354,9 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
         "sh_run", "js_run", "ask_user", "attach_read", "artifact"
     )
 
+    // 11 个回调已达 TooManyFunctions 阈值；接口是稳定 API，拆接口会波及全部实现方，
+    // 故局部 Suppress（氢气定案：不要拆接口，确实不能合并时直接 Suppress）。
+    @Suppress("TooManyFunctions")
     interface Callback {
         fun onThinkingStart()          // 思考段开始
         fun onThinkingDelta(text: String)  // 思考内容增量(打字机)
@@ -1094,7 +1100,7 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
         var usedCompletion = 0L
 
         // v8: 优选 IP 直连（池子为空时自动回落系统 DNS）
-        val conn = CloudflareOptDns.openConnection(ApiConfig.chatUrl())
+        val conn = CloudflareSniSocketFactory.openConnection(ApiConfig.chatUrl())
         conn.requestMethod = "POST"
         conn.setRequestProperty("Content-Type", "application/json")
         when (ApiConfig.authTypeOf(ApiConfig.providerId())) {

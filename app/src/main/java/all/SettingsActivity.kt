@@ -1,6 +1,8 @@
 package io.github.aixtin.nyral
 
 import io.github.aixtin.nyral.R
+import all.CloudflareIpProber
+import all.CloudflareOptDns
 
 import android.Manifest
 import android.app.Activity
@@ -35,6 +37,13 @@ import java.util.concurrent.TimeUnit
  * - 模型 API → ModelConfigActivity（每个模型单独配置）
  */
 class SettingsActivity : Activity() {
+
+    companion object {
+        /** 直连设置项 seed（settingsItem 图标配色种子） */
+        private const val SEED_DIRECT_SPEED = 16
+        private const val SEED_DIRECT_DIAG = 17
+        private const val SEED_IMPORT_IPS = 18
+    }
 
     private lateinit var modelSubtitle: TextView
     private lateinit var memorySubtitle: TextView
@@ -140,17 +149,27 @@ class SettingsActivity : Activity() {
         // 分组2b：直连（v8 免费优选 IP 直连，不走 VPN）
         content.addView(Ui.groupLabel(this, "直连"))
         val cardDirect = Ui.card(this)
-        cardDirect.addView(settingsItem("直连节点测速", directSpeedStatus(), R.drawable.ic_settings_model, 16, {
-            runDirectSpeedTest()
-        }) { directSpeedSubtitle = it })
+        cardDirect.addView(settingsItem(
+            "直连节点测速", directSpeedStatus(),
+            R.drawable.ic_settings_model, SEED_DIRECT_SPEED, {
+                runDirectSpeedTest()
+            }
+        ) { directSpeedSubtitle = it })
         cardDirect.addView(Ui.divider(this, 64))
-        cardDirect.addView(settingsItem("直连诊断", directDiagStatus(), R.drawable.ic_settings_debug, 17, {
-            runDirectDiagnose()
-        }) { directDiagSubtitle = it })
+        cardDirect.addView(settingsItem(
+            "直连诊断", directDiagStatus(),
+            R.drawable.ic_settings_debug, SEED_DIRECT_DIAG, {
+                runDirectDiagnose()
+            }
+        ) { directDiagSubtitle = it })
         cardDirect.addView(Ui.divider(this, 64))
-        cardDirect.addView(settingsItem("批量导入优选 IP", "粘贴 CloudflareSpeedTest 筛出的 IP，一行一个", R.drawable.ic_settings_upload, 18, {
-            showImportIpsDialog()
-        }))
+        cardDirect.addView(settingsItem(
+            "批量导入优选 IP",
+            "粘贴 CloudflareSpeedTest 筛出的 IP，一行一个",
+            R.drawable.ic_settings_upload, SEED_IMPORT_IPS, {
+                showImportIpsDialog()
+            }
+        ))
         content.addView(cardDirect)
 
         // 分组3：AI 生成(2026-11-04)
@@ -932,7 +951,7 @@ class SettingsActivity : Activity() {
         if (::directSpeedSubtitle.isInitialized) directSpeedSubtitle.text = "测速中…（约半分钟）"
         Thread {
             val scored = try {
-                CloudflareOptDns.runSpeedTest(base, ApiConfig.apiKey())
+                CloudflareIpProber.runSpeedTest(base, ApiConfig.apiKey())
             } catch (e: Exception) {
                 android.util.Log.w("Settings", "直连测速失败: ${e.message}")
                 emptyList()
@@ -965,7 +984,7 @@ class SettingsActivity : Activity() {
         if (::directDiagSubtitle.isInitialized) directDiagSubtitle.text = "诊断中…"
         Thread {
             val d = try {
-                CloudflareOptDns.diagnose(base, ApiConfig.apiKey())
+                CloudflareIpProber.diagnose(base, ApiConfig.apiKey())
             } catch (e: Exception) {
                 android.util.Log.w("Settings", "直连诊断失败: ${e.message}")
                 null
@@ -1003,16 +1022,26 @@ class SettingsActivity : Activity() {
     private fun showImportIpsDialog() {
         val ctx = this@SettingsActivity
         val (dlg, box) = Ui.dialog(ctx, "批量导入优选 IP")
-        box.addView(Ui.dialogText(ctx, "把 CloudflareSpeedTest 筛出的 IP 粘贴进来，一行一个。\n导入后会自动逐个探测，只留能用的进池子。"))
+        box.addView(
+            Ui.dialogText(
+                ctx,
+                "把 CloudflareSpeedTest 筛出的 IP 粘贴进来，一行一个。\n" +
+                    "导入后会自动逐个探测，只留能用的进池子。"
+            )
+        )
         val et = EditText(ctx).apply {
             hint = "1.2.3.4\n5.6.7.8"
             textSize = 14f
             minLines = 4
             gravity = Gravity.TOP
         }
-        box.addView(et, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) })
+        val etParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(8) }
+        box.addView(et, etParams)
         box.addView(buttonRow(dlg, "导入并探测") {
-            val ips = CloudflareOptDns.parseImportedIps(et.text.toString())
+            val ips = CloudflareIpProber.parseImportedIps(et.text.toString())
             dlg.dismiss()
             if (ips.isEmpty()) {
                 Toast.makeText(ctx, "没识别到合法 IP，一行一个，如 1.2.3.4", Toast.LENGTH_LONG).show()
@@ -1037,7 +1066,7 @@ class SettingsActivity : Activity() {
         Toast.makeText(this, "正在逐个探测 ${ips.size} 个 IP…", Toast.LENGTH_SHORT).show()
         Thread {
             val scored = try {
-                CloudflareOptDns.probeIps(ips, base, ApiConfig.apiKey())
+                CloudflareIpProber.probeIps(ips, base, ApiConfig.apiKey())
             } catch (e: Exception) {
                 android.util.Log.w("Settings", "导入探测失败: ${e.message}")
                 emptyList()

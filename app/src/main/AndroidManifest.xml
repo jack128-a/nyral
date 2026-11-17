@@ -178,7 +178,7 @@
 
         <!-- 流式生成保活前台服务(v8): 生成期间钉住进程 + 唤醒锁 + WiFi 高性能锁，防息屏断流 -->
         <service
-            android:name=".StreamKeepAliveService"
+            android:name="all.StreamKeepAliveService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
