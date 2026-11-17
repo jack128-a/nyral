@@ -34,7 +34,7 @@ object CloudflareIpProber {
     private const val OCTET_MAX_VALUE = 255
     private const val OCTET_SHIFT_24 = 24
     private const val OCTET_SHIFT_16 = 16
-    private const val OCTET_MASK = 0xFF
+    private const val OCTET_MASK = 0xFFL
 
     /** 采样防死循环：最多尝试次数 = 候选数 × 系数 */
     private const val SAMPLE_GUARD_FACTOR = 10
