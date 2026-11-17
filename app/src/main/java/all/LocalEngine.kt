@@ -784,6 +784,9 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
             val injectedTools = mutableSetOf<String>()
             // Top N 动态装载(2026-09-16): 经 tool_detail 激活的冷门工具, 本轮内额外注入回调列表
             val hotLoaded = mutableSetOf<String>()
+            // v9 Detekt 修法：streamOnce 的 6 个会话/控制参数收拢成一个对象，
+            // 本轮三处调用点复用（第 2 道防线用 .copy 改预算）
+            val baseParams = StreamTurnParams(messages, answerGate, injectedTools, hotLoaded)
 
             while (true) {
                 if (cancelRequested) {
@@ -791,7 +794,7 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
                     cb.onDone(scrubXmlLeak(full.toString()))
                     return
                 }
-                val res = streamOnce(context, messages, cb, answerGate, injectedTools, hotLoaded, taskId = taskId)
+                val res = streamOnce(context = context, cb = cb, taskId = taskId, params = baseParams)
                 // 弱网续跑: 流中断但已有部分输出 -> 携带已输出内容让模型从断点续写, 不重来不静默
                 if (res.interrupted && res.accumulated.isNotBlank()) {
                     attempt++
@@ -817,7 +820,10 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
                         android.util.Log.i("Nyral", "BudgetExhaustedSummary")
                         val finalMsg = "工具调用预算已耗尽(已达 $MAX_TOOL_CALLS 次上限)。请仅基于已获得的工具执行结果, 直接向用户输出最终答案总结。不要发起任何工具调用, 不要重复执行工具, 不要输出思考过程。"
                         messages.put(JSONObject().put("role", "user").put("content", finalMsg))
-                        val resFinal = streamOnce(context, messages, cb, answerGate, injectedTools, hotLoaded, forceNoTools = true, taskId = taskId)
+                        val resFinal = streamOnce(
+                            context = context, cb = cb, taskId = taskId,
+                            params = baseParams.copy(forceNoTools = true)
+                        )
                         val finalText = resFinal.accumulated.trim()
                         if (finalText.isNotBlank()) {
                             full.append(capOut(finalText))
@@ -961,14 +967,20 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
                 if (noVisibleText && lengthCut && continuationRetryCount < MAX_EMPTY_CONTINUATION_RETRIES) {
                     continuationRetryCount++
                     retriedEmpty = true   // 续写已是兜底重试，不再触发下方通用空回复重试，避免重复发请求
-                    android.util.Log.w("Nyral", "v9 空气泡自动续写 thinkChars=${res.thinkingText.length} lastFinishReason=${res.lastFinishReason}")
+                    android.util.Log.w(
+                        "Nyral",
+                        "v9 空气泡自动续写 thinkChars=${res.thinkingText.length} " +
+                            "lastFinishReason=${res.lastFinishReason}"
+                    )
                     try { cb.onStatusNote("思考过程较长，正在自动总结正文...") } catch (_: Throwable) {}
                     messages.put(JSONObject().put("role", "assistant").put("content",
                         "<think>${res.thinkingText.takeLast(CONTINUATION_THINK_TAIL_CHARS)}</think>\n"))
                     messages.put(JSONObject().put("role", "user").put("content",
                         "你的推理已达长度上限并已结束。请立刻跳过思考过程，直接向用户输出最终总结答复。"))
-                    val resCont = streamOnce(context, messages, cb, answerGate, injectedTools, hotLoaded,
-                        forceNoTools = true, maxTokens = CONTINUATION_MAX_TOKENS, taskId = taskId)
+                    val resCont = streamOnce(
+                        context = context, cb = cb, taskId = taskId,
+                        params = baseParams.copy(forceNoTools = true, maxTokens = CONTINUATION_MAX_TOKENS)
+                    )
                     if (resCont.accumulated.isNotBlank()) {
                         full.append(capOut(resCont.accumulated))
                         PatternStore.record(context, patSig, toolSeqUsed.toList(), ok = true)
@@ -1129,15 +1141,13 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
     )
     private fun streamOnce(
         context: Context,
-        messages: JSONArray,
         cb: Callback,
-        answerGate: () -> String?,
-        injectedTools: MutableSet<String>,
-        hotLoaded: Set<String>,
-        forceNoTools: Boolean = false,
-        maxTokens: Int = DEFAULT_MAX_TOKENS,
-        taskId: Long = 0L
+        taskId: Long,
+        params: StreamTurnParams
     ): StreamResult {
+        // v9 Detekt 修法：参数对象解构，下面业务代码一行都不用改
+        // （injectedTools 体内未直接使用，仅随对象透传保留，防后续扩展再踩线）
+        val (messages, answerGate, injectedTools, hotLoaded, forceNoTools, maxTokens) = params
         val body = JSONObject()
         body.put("model", ApiConfig.model())
         body.put("messages", messages)
@@ -2342,6 +2352,22 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
         return "\n◆ MCP 外部工具(来自配置的 MCP 服务, 前缀即服务名, 多服务请按名称区分):\n" +
             (if (overview.isNotEmpty()) "  服务概览: $overview\n" else "") + lines + "\n"
     }
+
+    /**
+     * v9 Detekt 修法（氢气定案）：streamOnce 参数对象。
+     * 把“单次请求会话与控制策略”相关的 6 个参数收拢，
+     * 避免 LongParameterList（9 参超上限 6 个）。
+     * forceNoTools / maxTokens 保留默认值；messages 等引用类型共享同一对象
+     * （JSONArray/Set 可变，调用方 put 后可见）。
+     */
+    private data class StreamTurnParams(
+        val messages: JSONArray,
+        val answerGate: () -> String?,
+        val injectedTools: MutableSet<String>,
+        val hotLoaded: Set<String>,
+        val forceNoTools: Boolean = false,
+        val maxTokens: Int = DEFAULT_MAX_TOKENS
+    )
 
     private data class StreamResult(
         val accumulated: String,
