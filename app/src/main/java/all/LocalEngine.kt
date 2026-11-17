@@ -1145,19 +1145,18 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
         taskId: Long,
         params: StreamTurnParams
     ): StreamResult {
-        // v9 Detekt 修法：参数对象解构，下面业务代码一行都不用改
+        // v9 Detekt 修法：参数对象 params. 前缀访问，不解构（解构 6 项超 Detekt 上限 3 项）
         // （injectedTools 体内未直接使用，仅随对象透传保留，防后续扩展再踩线）
-        val (messages, answerGate, injectedTools, hotLoaded, forceNoTools, maxTokens) = params
         val body = JSONObject()
         body.put("model", ApiConfig.model())
-        body.put("messages", messages)
+        body.put("messages", params.messages)
         body.put("temperature", 0.3)
         body.put("stream", true)
         // v9: 单次生成 token 上限（默认 12288；空气泡自动续写走小预算 4096）
-        body.put("max_tokens", maxTokens)
+        body.put("max_tokens", params.maxTokens)
         // 原生 function calling: 请求携带 tools(模型支持时); probe 失败过则降级纯文本
-        val useTools = !toolsDegradedNow() && !forceNoTools
-        if (useTools) body.put("tools", buildToolsArray(context, hotLoaded))
+        val useTools = !toolsDegradedNow() && !params.forceNoTools
+        if (useTools) body.put("tools", buildToolsArray(context, params.hotLoaded))
         // 默认厂商支持流式返回真实 usage(最后一块); 其余厂商未知, 不加避免报错, 靠本地估算
         if (ApiConfig.providerId() == "deepseek") {
             body.put("stream_options", JSONObject().put("include_usage", true))
@@ -1301,13 +1300,13 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
             }
             // 视频直发被拒(2026-10-26): 请求里带 video_url 且 4xx -> 记下该 provider|model 组合,
             // 立即重跑; 重跑时附件改发索引卡, 由 AI 调 video_frame 抽帧(附件已落库, 不丢内容)
-            if (code in 400..499 && hasVideoPart(messages)) {
+            if (code in 400..499 && hasVideoPart(params.messages)) {
                 videoDirectDisabledKey = ApiConfig.providerId() + "|" + ApiConfig.model()
                 android.util.Log.w("Nyral", "video_url 直发被拒($code), 降级抽帧: ${err.take(200)}")
                 throw VideoDirectRejectedException("VIDEO_DIRECT_REJECTED")
             }
             // 音频直发被拒(2026-10-26): 请求里带 input_audio 且 4xx -> 记组合, 重跑改走 audio_read 索引卡
-            if (code in 400..499 && hasAudioPart(messages)) {
+            if (code in 400..499 && hasAudioPart(params.messages)) {
                 audioDirectDisabledKey = ApiConfig.providerId() + "|" + ApiConfig.model()
                 android.util.Log.w("Nyral", "input_audio 直发被拒($code), 降级 audio_read: ${err.take(200)}")
                 throw VideoDirectRejectedException("AUDIO_DIRECT_REJECTED")
@@ -1515,7 +1514,9 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
                             if (mode == MODE_CONTENT) { cb.onDelta("\n"); accumulated.append('\n') }
                             continue
                         }
-                        val stop = processRow(row, mode, accumulated, cb, { m -> mode = m }, answerGate, restartOut)
+                        val stop = processRow(
+                            row, mode, accumulated, cb, { m -> mode = m }, params.answerGate, restartOut
+                        )
                         if (stop != null) {
                             val t = stop
                             // 原生名称归一: 文本协议也可能输出带引号/引用的工具名
@@ -1648,7 +1649,9 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
                     if (useTools) {
                         cb.onDelta(tail); accumulated.append(tail)
                     } else {
-                        val stop = processRow(tail, mode, accumulated, cb, { m -> mode = m }, answerGate, restartOut)
+                        val stop = processRow(
+                            tail, mode, accumulated, cb, { m -> mode = m }, params.answerGate, restartOut
+                        )
                         if (stop != null) {
                             toolCalls.add(stop)
                             toolCallIds.add("txt_${toolCalls.size}")
@@ -1687,7 +1690,10 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
                 val tail = lineBuf.toString().trimEnd()
                 cb.onDelta(tail); accumulated.append(tail)
             } else {
-                val stop = processRow(lineBuf.toString().trimEnd(), mode, accumulated, cb, { m -> mode = m }, answerGate, restartOut)
+                val stop = processRow(
+                    lineBuf.toString().trimEnd(), mode, accumulated, cb,
+                    { m -> mode = m }, params.answerGate, restartOut
+                )
                 if (stop != null) {
                     toolCalls.add(stop)
                     toolCallIds.add("txt_${toolCalls.size}")
