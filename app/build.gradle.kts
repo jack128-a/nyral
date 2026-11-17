@@ -65,12 +65,17 @@ android {
         val dafeiyuApiKey = envOrProp("DAFEIYU_API_KEY", "dafeiyuApiKey")
         val tavilyApiKey = envOrProp("TAVILY_API_KEY", "tavilyApiKey")
         val dafeiyuBaseUrl = envOrProp("DAFEIYU_BASE_URL", "dafeiyuBaseUrl")
+        // 大肥鱼 v6: 二号线端点与 Key 注入（与一号线同款 env 优先、local.properties 兜底；均为空时为空串）
+        val dafeiyuNode2ApiKey = envOrProp("DAFEIYU_NODE2_API_KEY", "dafeiyuNode2ApiKey")
+        val dafeiyuNode2BaseUrl = envOrProp("DAFEIYU_NODE2_BASE_URL", "dafeiyuNode2BaseUrl")
         if (dafeiyuApiKey.isEmpty()) {
             logger.warn("DAFEIYU_API_KEY missing — 大肥鱼默认供应商将无 Key，需用户在设置页手动粘贴")
         }
         buildConfigField("String", "DAFEIYU_API_KEY", buildConfigStr(dafeiyuApiKey))
         buildConfigField("String", "TAVILY_API_KEY", buildConfigStr(tavilyApiKey))
         buildConfigField("String", "DAFEIYU_BASE_URL", buildConfigStr(dafeiyuBaseUrl))
+        buildConfigField("String", "DAFEIYU_NODE2_API_KEY", buildConfigStr(dafeiyuNode2ApiKey))
+        buildConfigField("String", "DAFEIYU_NODE2_BASE_URL", buildConfigStr(dafeiyuNode2BaseUrl))
         ndk {
             abiFilters += listOf(project.findProperty("nyralAbi") as String? ?: "arm64-v8a")
         }

@@ -419,6 +419,26 @@ object ApiConfig {
     /** 拼出 /chat/completions 完整地址 */
     fun chatUrl(): String = baseUrl().trimEnd('/') + "/chat/completions"
 
+    /**
+     * 大肥鱼双线路种子：按固定 id 幂等注册预设供应商（供 DafeiyuConfig.seedDefaults 调用）。
+     * - 不存在时插入（isPreset=true，label/base/model/key 全取传入值）；
+     * - 已存在时仅在已存 Key 为空且传入 Key 非空时补 Key，绝不碰用户改过的 base/model/label；
+     * - 绝不改动当前选择（默认切线由调用方决定）。
+     * 注意：addCustomProvider 每次生成新的 custom_N id，无法用于固定 id 的幂等种子，故单列此函数。
+     */
+    fun ensureProvider(id: String, label: String, base: String, key: String, model: String) {
+        val list = providers().toMutableList()
+        val idx = list.indexOfFirst { it.id == id }
+        if (idx < 0) {
+            list.add(Provider(id = id, label = label, defaultBase = base, defaultModel = model,
+                key = key.trim(), isPreset = true))
+            saveProviders(list)
+        } else if (list[idx].key.isBlank() && key.isNotBlank()) {
+            list[idx] = list[idx].copy(key = key.trim())
+            saveProviders(list)
+        }
+    }
+
     /** 保存某个 Provider 的配置，可选设为当前。
      *  models 非 null 时表示用户从"拉取模型"多选得到的子模型集合，直接写入；为 null 时沿用编辑前逻辑
      *  thinkingEffort 非 null 时覆盖思考强度档位；为 null 时保留原值

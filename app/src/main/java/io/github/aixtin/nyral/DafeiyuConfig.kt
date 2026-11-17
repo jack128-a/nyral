@@ -22,6 +22,26 @@ object DafeiyuConfig {
     /** 默认端点：BuildConfig 注入（DAFEIYU_BASE_URL），空时为占位符，绝不写真实地址进源码 */
     val DEFAULT_BASE_URL: String = BuildConfig.DAFEIYU_BASE_URL.ifBlank { "https://YOUR_TUNNEL_URL" }
 
+    // ============ 1b. 二号线供应商（v6：双线路内置预设） ============
+
+    const val NODE2_PROVIDER_ID = "dafeiyu_line2"
+    const val NODE2_PROVIDER_NAME = "大肥鱼二号线"
+    const val NODE2_MODEL_ID = "my-qwen-27b-line2"
+
+    /** 二号线端点：BuildConfig 注入（DAFEIYU_NODE2_BASE_URL），缺 /v1 自动补；空时不注册该线路 */
+    val NODE2_BASE_URL: String = normalizeV1BaseUrl(BuildConfig.DAFEIYU_NODE2_BASE_URL)
+
+    /**
+     * 归一化供应商 Base URL：去首尾空白与末尾斜杠；缺 /v1 时自动补。
+     * fork 的 chatUrl() 只在 base 后拼 "/chat/completions"，而 llama-server 的 OpenAI 兼容端点
+     * 在 /v1/chat/completions，因此 base 必须以 /v1 结尾。空白输入原样返回空串（调用方据此跳过该线路）。
+     */
+    fun normalizeV1BaseUrl(raw: String): String {
+        val base = raw.trim().trimEnd('/')
+        if (base.isEmpty()) return ""
+        return if (base.endsWith("/v1")) base else "$base/v1"
+    }
+
     // ============ 2. 工具白名单 ============
     /**
      * 仅向模型暴露的 8 个核心业务工具（其余 20 个不下发、不激活、执行侧也查不到）。
@@ -266,20 +286,26 @@ object DafeiyuConfig {
 
     /**
      * 首次启动种子（由 ApiConfig.init 调用，每个 Activity.onCreate 都会走一次，本函数幂等）：
-     * - BuildConfig 带 Key 且已存的大肥鱼 Key 为空时，调原版 saveProvider 加密写入 SharedPreferences
-     *   （不覆盖用户手动改过的 Key；Key 此后只活在加密存储里）；
-     * - 从未选过供应商（全新安装）时默认切到大肥鱼；之后绝不覆盖用户的手动选择。
+     * - 两条线逐条按固定 id 注册（ApiConfig.ensureProvider）：不存在时插入，已存在时仅在 Key 为空时补 Key，
+     *   绝不覆盖用户改过的 base/model/label；Key 此后只活在加密存储里；
+     * - 二号线 Base 未配置（Secret 未配）时不注册，等配好后的构建自然出现；
+     * - 用户若已手动加过同地址的供应商（自定义），不再重复插一条；
+     * - 从未选过供应商（全新安装）时默认切到一号线；之后绝不覆盖用户的手动选择。
      */
     fun seedDefaults(context: Context) {
-        val key = BuildConfig.DAFEIYU_API_KEY.trim()
-        if (key.isNotEmpty()) {
-            val stored = ApiConfig.providerById(DEFAULT_PROVIDER_ID)?.key.orEmpty()
-            if (stored.isBlank()) {
-                ApiConfig.saveProvider(
-                    DEFAULT_PROVIDER_ID, DEFAULT_BASE_URL, key, DEFAULT_MODEL_ID,
-                    setAsCurrent = false
-                )
-            }
+        ApiConfig.ensureProvider(
+            DEFAULT_PROVIDER_ID, DEFAULT_PROVIDER_NAME,
+            DEFAULT_BASE_URL, BuildConfig.DAFEIYU_API_KEY.trim(), DEFAULT_MODEL_ID
+        )
+        val node2Key = BuildConfig.DAFEIYU_NODE2_API_KEY.trim()
+        val hasManualLine2 = ApiConfig.providers().any {
+            it.id != NODE2_PROVIDER_ID && normalizeV1BaseUrl(it.defaultBase) == NODE2_BASE_URL
+        }
+        if (NODE2_BASE_URL.isNotBlank() && !hasManualLine2) {
+            ApiConfig.ensureProvider(
+                NODE2_PROVIDER_ID, NODE2_PROVIDER_NAME,
+                NODE2_BASE_URL, node2Key, NODE2_MODEL_ID
+            )
         }
         val prefs = context.getSharedPreferences(API_CONFIG_PREFS, Context.MODE_PRIVATE)
         if (!prefs.contains(API_CONFIG_CURRENT_KEY)) {
