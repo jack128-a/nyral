@@ -159,6 +159,7 @@ internal class AiBubbleHolder(private val host: MainActivity) : TypewriterTickab
     private var statusSealed = false            // 收尾定格后不再轮播
     private var waitStartMs = 0L                // 等待计时起点(思考/工具态), 0=未激活
     private var waitStage = ""                  // 等待阶段名("思考"/"工具"), 非空=计时激活
+    private var reconnectNotice: String? = null // v8 重连指示：非空时状态行置顶显示，恢复后清除
 
     // 输出中暗色态(解决闪感): AI 流式输出期间气泡背景+文字亮度压低(暗色降低逐字刷新感知),
     // 输出完成(finishTypeRender)后渐亮回原始色, 视觉上"安静打字 -> 完成后亮起";
@@ -270,6 +271,23 @@ internal class AiBubbleHolder(private val host: MainActivity) : TypewriterTickab
         val ms = SystemClock.uptimeMillis() - (if (dotsStartMs == 0L) SystemClock.uptimeMillis() else dotsStartMs)
         val stage = pendingToolLabel ?: return elapsedText(ms)
         return stage + " · " + elapsedText(ms)
+    }
+
+    /** v8 重连指示（主线程调用）：状态行置顶显示浅灰小字，恢复后自动消失，正文不掺字 */
+    fun showReconnectNotice(attempt: Int) {
+        reconnectNotice = "网络抖动，正在无感续接 (第${attempt}次)..."
+        ensureStatusRow()
+        statusSealed = false
+        lastSnippet = null
+        showSnippet()
+    }
+
+    /** v8 重连恢复：撤掉重连指示，状态行回到正常片段轮播 */
+    fun hideReconnectNotice() {
+        if (reconnectNotice == null) return
+        reconnectNotice = null
+        lastSnippet = null
+        showSnippet()
     }
 
     /** 工具参数流式进度(主线程调用): 参数每增长若干字节刷新一次, 正文已在流式输出时不打扰 */
@@ -926,8 +944,9 @@ internal class AiBubbleHolder(private val host: MainActivity) : TypewriterTickab
         statusWrap = addChatBubble(c)
     }
 
-    /** 当前应展示的片段: 活跃思考 tail / 最新工具(无结果=参数, 有结果=结果) */
+    /** 当前应展示的片段: v8 重连指示置顶，其次活跃思考 tail / 最新工具 */
     private fun currentSnippet(): String? {
+        reconnectNotice?.let { return it }
         activeThinking?.let { b ->
             if (!b.collapsed) {
                 return snippet(tailThinking(b).replace("\n", " ").trim())

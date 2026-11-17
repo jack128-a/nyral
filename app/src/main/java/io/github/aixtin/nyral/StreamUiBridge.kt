@@ -136,6 +136,15 @@ internal class StreamUiBridge(
                 AITerminal.push("waiting", "已等待上游 ${elapsedSec}s")
                 activity.debugSseSink?.invoke("waiting", elapsedSec.toString())
             }
+            override fun onConnectionState(reconnecting: Boolean, attempt: Int) {
+                // v8: 重连指示只走气泡状态行微弱小字，不写正文/思考区
+                LogStore.w(LogStore.MAIN, "连接状态 reconnecting=$reconnecting attempt=$attempt")
+                uiScope.launch {
+                    if (!session.isCurrent(epoch)) return@launch
+                    if (reconnecting) holder.showReconnectNotice(attempt)
+                    else holder.hideReconnectNotice()
+                }
+            }
             override fun onTool(name: String, arg: String) {
                 toolTrace.add(name to arg)
                 LogStore.i(LogStore.MAIN, "调用工具: $name")
@@ -188,6 +197,7 @@ internal class StreamUiBridge(
                 uiScope.launch {
                     // 代际校验(阶段2): 切会话/新请求已接管, 迟到回调直接丢弃, 不碰 holder/不写库/不动状态
                     if (!session.isCurrent(epoch)) return@launch
+                    holder.hideReconnectNotice()   // v8: 收尾撤掉重连指示（若曾显示）
                     drain(holder, epoch)   // 收尾前排空合帧缓冲: 排队中的思考/正文增量先上屏
                     // 2026-11-06: onStop/onDestroy 可能已落过草稿条, 先摘掉再由下面的正常路径写完整回复
                     activity.discardStreamingDraft()
@@ -319,6 +329,7 @@ internal class StreamUiBridge(
                 val human = ErrorText.humanize(msg)
                 uiScope.launch {
                     if (!session.isCurrent(epoch)) return@launch
+                    holder.hideReconnectNotice()   // v8: 出错撤掉重连指示（若曾显示）
                     drain(holder, epoch)   // 出错前排空缓冲, 已收到的增量不悬空
                     activity.discardStreamingDraft()   // 2026-11-06: 出错不保留草稿, 避免半截 AI 行
                     // 2026-11-08 缺陷修复: 断流/超时/5xx 时引擎已产出半截正文, 旧实现 showError 后直接移除

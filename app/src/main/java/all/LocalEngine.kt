@@ -12,7 +12,6 @@ import java.io.IOException
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.SocketException
-import java.net.URL
 import java.util.concurrent.CancellationException
 
 private const val MS_PER_SEC = 1000L
@@ -42,6 +41,14 @@ object LocalEngine {
 
     // 单次完整回复输出上限(字符): 防模型超长输出/多轮 tool 累积导致上下文顶爆窗口; 超限截断并提示
     private const val MAX_OUTPUT_CHARS = 60000
+
+    // ===== v8 直连与断流修法 =====
+    /** 单次生成 token 上限：配合服务端 --reasoning-budget 2048，把单次生成压进 3–5 分钟 */
+    private const val MAX_OUTPUT_TOKENS = 4096
+    /** 流式建连超时(ms)：v8 从 20000 收紧到 15000，死 IP 快失败快切换 */
+    private const val STREAM_CONNECT_TIMEOUT_MS = 15000
+    /** 流式读超时(ms)：v8 从 60000 放到 300000，工具调用静默期不再提前掐断 */
+    private const val STREAM_READ_TIMEOUT_MS = 300000
 
     // ===== 上游存活探测(2026-11-15) =====
     // 背景: 连接只设了 connectTimeout/readTimeout, 而 readTimeout 只管"读不到字节"。
@@ -203,6 +210,11 @@ object LocalEngine {
     @Volatile
     var cancelReason = CancelReason.NONE
 
+    /** v8 重连次数（0 = 未在重连）：重连时置为第几次，流恢复出字后清零；
+     *  供 streamOnce 的 markProgress 在恢复出字瞬间通知 UI 撤掉重连指示 */
+    @Volatile
+    private var reconnectAttempt = 0
+
     /** 浏览器页桥接: AI 调用 open_browser 时由 MainActivity 注册回调打开全屏浏览器页(需主线程执行) */
     @Volatile
     var onOpenBrowser: ((url: String?) -> Unit)? = null
@@ -348,6 +360,10 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
         /** 上游静默提示(2026-11-15): 连接仍有字节(心跳/空帧)但无任何有效增量时按步长上报,
          *  仅用于告知用户"还在等上游", 不得写正文/思考区(避免污染落库内容) */
         fun onWaiting(elapsedSec: Int) {}
+        /** v8 重连状态提示：重连中（attempt 为第几次）/ 已恢复时通知 UI 在状态行
+         *  显示微弱指示，绝不写正文（避免污染落库内容与 Markdown 渲染）。
+         *  默认空实现：TaskService 等非 UI 回调可不接。 */
+        fun onConnectionState(reconnecting: Boolean, attempt: Int) {}
         fun onTool(name: String, arg: String)  // 正在执行工具
         fun onToolResult(name: String, result: String) {}  // 工具执行完成(结果回填, 默认空实现)
         fun onDelta(text: String)      // 正文增量(流式)
@@ -672,11 +688,19 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
         synchronized(chatLock) {
             cancelRequested = false
             cancelReason = CancelReason.NONE
+            reconnectAttempt = 0   // v8: 每轮清零，避免上一轮重连残值误触发恢复通知
             // fix(2026-11-15): 入口留一条汇总日志, 排查时能先从 logcat 确认"引擎确实被调起"以及规模,
             // 再往下钻 Nyral tag 的细粒度日志(此前只能靠 trace 文件反推)
             android.util.Log.i("LocalEngine", "chat 开始 taskId=" + taskId + " silent=" + silentMode +
                 " tools=" + allowTools.size + " attachments=" + attachments.size + " history=" + history.length + " 字符")
-            chatImpl(context, history, cb, attachments, silentMode, allowTools, taskId)
+            // v8: 优选 IP 池加载（幂等）+ 生成期前台保活（息屏也不断流），结束必停
+            CloudflareOptDns.init(context)
+            StreamKeepAliveService.start(context)
+            try {
+                chatImpl(context, history, cb, attachments, silentMode, allowTools, taskId)
+            } finally {
+                StreamKeepAliveService.stop(context)
+            }
         }
     }
 
@@ -748,7 +772,9 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
                         return
                     }
                     full.append(capOut(res.accumulated))
-                    cb.onDelta("\n\n[网络中断，正在续跑…]")
+                    // v8: 续跑提示同样改走状态行微弱指示，不再往正文拼提示
+                    reconnectAttempt = attempt
+                    try { cb.onConnectionState(true, attempt) } catch (_: Throwable) {}
                     messages.put(JSONObject().put("role", "assistant").put("content", capOut(res.accumulated.trimEnd())))
                     messages.put(JSONObject().put("role", "user").put("content",
                         "你刚才的回答因网络中断未能完整输出。请严格从断点继续完整输出剩余内容，不要重复已输出的部分。"))
@@ -936,7 +962,9 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
                 return
             }
             android.util.Log.w("Nyral", "chat network interrupted, auto-retry #$attempt: ${e.message}")
-            cb.onDelta("\n\n[网络波动，已自动重连一次]")
+            // v8: 重连提示改走状态行微弱指示，不再往正文拼“[网络波动…]”（污染落库与 Markdown）
+            reconnectAttempt = attempt
+            try { cb.onConnectionState(true, attempt) } catch (_: Throwable) {}
             // 指数退避: 1s/2s/4s, 给弱网恢复窗口
             sleepCancellable(1000L shl (attempt - 1))
             continue
@@ -1043,6 +1071,8 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
         body.put("messages", messages)
         body.put("temperature", 0.3)
         body.put("stream", true)
+        // v8: 单次生成 token 上限（服务端 reasoning-budget 2048 限思考，本端限总输出），压进 3–5 分钟
+        body.put("max_tokens", MAX_OUTPUT_TOKENS)
         // 原生 function calling: 请求携带 tools(模型支持时); probe 失败过则降级纯文本
         val useTools = !toolsDegradedNow() && !forceNoTools
         if (useTools) body.put("tools", buildToolsArray(context, hotLoaded))
@@ -1063,7 +1093,8 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
         var usedPrompt = 0L
         var usedCompletion = 0L
 
-        val conn = URL(ApiConfig.chatUrl()).openConnection() as HttpURLConnection
+        // v8: 优选 IP 直连（池子为空时自动回落系统 DNS）
+        val conn = CloudflareOptDns.openConnection(ApiConfig.chatUrl())
         conn.requestMethod = "POST"
         conn.setRequestProperty("Content-Type", "application/json")
         when (ApiConfig.authTypeOf(ApiConfig.providerId())) {
@@ -1074,8 +1105,8 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
         // 定时岗位任务来源标识(2026-10-13): 静默执行带 taskId, 远端可识别请求归属
         if (taskId > 0L) conn.setRequestProperty("X-Nyral-Task-ID", taskId.toString())
         conn.doOutput = true
-        conn.connectTimeout = 20000
-        conn.readTimeout = 60000
+        conn.connectTimeout = STREAM_CONNECT_TIMEOUT_MS
+        conn.readTimeout = STREAM_READ_TIMEOUT_MS
         activeConn = conn
         activeConns.add(conn)
         // 上游存活探测起点(2026-11-15): 建连即刻计时, 首内容/无进展/总时长三道闸共用同一时间轴
@@ -1096,6 +1127,11 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
             gotAnyProgress = true
             progressAtRef.set(lastProgressAt)
             gotProgressRef.set(true)
+            // v8: 重连后第一次出字即视为恢复，通知 UI 撤掉重连指示（只发一次）
+            if (reconnectAttempt > 0) {
+                reconnectAttempt = 0
+                try { cb.onConnectionState(false, 0) } catch (_: Throwable) {}
+            }
         }
         val accumulated = StringBuilder()
         val toolCalls = mutableListOf<Pair<String, String>>()
@@ -1192,6 +1228,8 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
             }
             throw RuntimeException("API $code: $err")
         }
+        // v8: 建连成功（拿到 2xx），该优选 IP 记一次成功、清掉失败计数
+        CloudflareOptDns.reportSuccess()
         // 带 tools 的请求拿到 2xx: 能力已恢复, 清零降级状态
         if (useTools) clearToolsUnsupported()
         reader = BufferedReader(InputStreamReader(conn.inputStream))
@@ -1533,6 +1571,8 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
             }
             if (mode == MODE_THINKING) cb.onThinkingEnd()
             if (toolCalls.isEmpty() && nativeAcc.isEmpty() && accumulated.isBlank()) {
+                // v8: 零输出断线，该优选 IP 记一次失败，下次重连顺延到下一个
+                CloudflareOptDns.reportFailure()
                 throw RetryableException("模型连接中断(网络波动)")
             }
             if (toolCalls.isEmpty() && nativeAcc.isEmpty() && accumulated.isNotBlank()) {
@@ -1668,6 +1708,8 @@ ToolSpec("timer_task_create", "创建定时岗位任务(2026-10-14 严格key校�
             }
             // 连接阶段失败(网络不可达/DNS/连接超时): 与读取阶段中断同等对待, 转可重试
             android.util.Log.w("Nyral", "SSE connect failed: ${e.message}")
+            // v8: 建连失败，该优选 IP 记一次失败，下次重连顺延到下一个
+            CloudflareOptDns.reportFailure()
             throw RetryableException("模型连接失败(网络不可达): ${e.message}")
         } finally {
             watchdogLive.set(false)

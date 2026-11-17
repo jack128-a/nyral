@@ -688,6 +688,10 @@
     <!-- 后台任务通知 -->
     <string name="ts_channel_name">Task Running</string>
     <string name="ts_channel_desc">Foreground notification while AI processes tasks, prevents the process from being killed</string>
+    <!-- 流式生成保活通知（v8） -->
+    <string name="sk_channel_name">Receiving model reply</string>
+    <string name="sk_channel_desc">Foreground notification while AI generates a reply, prevents disconnect on screen off</string>
+    <string name="sk_content">Receiving model reply…</string>
     <string name="ts_running">Task running…</string>
     <string name="ts_content">AI is processing a task in the background, please don\'t force-stop</string>
     <string name="ts_short_text">Working</string>

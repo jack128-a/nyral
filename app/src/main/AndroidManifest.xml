@@ -3,6 +3,7 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -172,6 +173,12 @@
         <!-- 任务执行前台服务: AI 处理任务期间防止进程被回收, dataSync 类型 -->
         <service
             android:name=".TaskService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- 流式生成保活前台服务(v8): 生成期间钉住进程 + 唤醒锁 + WiFi 高性能锁，防息屏断流 -->
+        <service
+            android:name=".StreamKeepAliveService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 

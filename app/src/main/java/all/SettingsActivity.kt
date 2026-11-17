@@ -54,6 +54,10 @@ class SettingsActivity : Activity() {
     private lateinit var debugBox: LinearLayout
     private lateinit var uploadSizeSub: TextView
     private lateinit var permSubtitleView: TextView
+    private lateinit var directSpeedSubtitle: TextView
+    private lateinit var directDiagSubtitle: TextView
+    private var directBusy = false   // v8: 测速/诊断进行中，防重复点
+    private var lastDirectDiag: String? = null   // v8: 上次直连诊断摘要
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,6 +68,7 @@ class SettingsActivity : Activity() {
         UploadConfig.init(this)
         PersonaConfig.init(this)
         AvatarConfig.init(this)
+        CloudflareOptDns.init(this)
         Ui.statusBar(this)
 
         val root = Ui.pageRoot(this)
@@ -131,6 +136,22 @@ class SettingsActivity : Activity() {
             startActivity(Intent(this@SettingsActivity, MemModelConfigActivity::class.java))
         }) { memModelSubtitle = it })
         content.addView(cardModel)
+
+        // 分组2b：直连（v8 免费优选 IP 直连，不走 VPN）
+        content.addView(Ui.groupLabel(this, "直连"))
+        val cardDirect = Ui.card(this)
+        cardDirect.addView(settingsItem("直连节点测速", directSpeedStatus(), R.drawable.ic_settings_model, 16, {
+            runDirectSpeedTest()
+        }) { directSpeedSubtitle = it })
+        cardDirect.addView(Ui.divider(this, 64))
+        cardDirect.addView(settingsItem("直连诊断", directDiagStatus(), R.drawable.ic_settings_debug, 17, {
+            runDirectDiagnose()
+        }) { directDiagSubtitle = it })
+        cardDirect.addView(Ui.divider(this, 64))
+        cardDirect.addView(settingsItem("批量导入优选 IP", "粘贴 CloudflareSpeedTest 筛出的 IP，一行一个", R.drawable.ic_settings_upload, 18, {
+            showImportIpsDialog()
+        }))
+        content.addView(cardDirect)
 
         // 分组3：AI 生成(2026-11-04)
         content.addView(Ui.groupLabel(this, "AI 生成"))
@@ -408,6 +429,7 @@ class SettingsActivity : Activity() {
         if (::permSubtitleView.isInitialized) {
             permSubtitleView.text = permStatus()
         }
+        refreshDirectSubtitles()
     }
 
 
@@ -866,6 +888,171 @@ class SettingsActivity : Activity() {
         // 入口副标题 = 记忆 API 状态 + 语义模型下载状态（2026-11-05：此前 onResume 只拼前者，模型状态被抹掉）
         memModelSubtitle.text = getString(R.string.settings_mem_model_sub, MemoryApiConfig.statusText()) +
             " · " + ModelUpdater.statusText()
+    }
+
+    // ===== 直连（v8 免费优选 IP） =====
+
+    /** 当前线路的 baseUrl（带 /v1）；未配置/占位符时返回 null */
+    private fun directBaseUrl(): String? {
+        val base = ApiConfig.baseUrl().trim()
+        if (base.isBlank() || base.contains("YOUR_TUNNEL_URL")) return null
+        return base
+    }
+
+    private fun directSpeedStatus(): String {
+        val pool = CloudflareOptDns.poolSnapshot()
+        if (pool.isEmpty()) return "未测速，点我测速（约半分钟）"
+        val best = pool.minByOrNull { it.latencyMs }
+        return "已存 ${pool.size} 个优选 IP · 最快 ${best?.latencyMs ?: 0}ms"
+    }
+
+    private fun directDiagStatus(): String = lastDirectDiag ?: "未诊断，点我验证直连"
+
+    private fun refreshDirectSubtitles() {
+        if (::directSpeedSubtitle.isInitialized) {
+            directSpeedSubtitle.text = directSpeedStatus()
+        }
+        if (::directDiagSubtitle.isInitialized) {
+            directDiagSubtitle.text = directDiagStatus()
+        }
+    }
+
+    /** 直连节点测速：后台线程跑，测完回主线程刷新副标题 + Toast */
+    private fun runDirectSpeedTest() {
+        if (directBusy) {
+            Toast.makeText(this, "测速进行中，稍等…", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val base = directBaseUrl()
+        if (base == null) {
+            Toast.makeText(this, "当前线路未配置，先在模型 API 里配好线路", Toast.LENGTH_LONG).show()
+            return
+        }
+        directBusy = true
+        if (::directSpeedSubtitle.isInitialized) directSpeedSubtitle.text = "测速中…（约半分钟）"
+        Thread {
+            val scored = try {
+                CloudflareOptDns.runSpeedTest(base, ApiConfig.apiKey())
+            } catch (e: Exception) {
+                android.util.Log.w("Settings", "直连测速失败: ${e.message}")
+                emptyList()
+            }
+            runOnUiThread {
+                directBusy = false
+                refreshDirectSubtitles()
+                val msg = if (scored.isEmpty()) {
+                    "测速完成，但没筛出可用 IP（可能当前网络不通或线路未响应），可稍后重试或批量导入"
+                } else {
+                    "测速完成，已存 ${scored.size} 个优选 IP，最快 ${scored.first().latencyMs}ms"
+                }
+                Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+            }
+        }.start()
+    }
+
+    /** 直连诊断：后台线程跑，弹框展示结果 */
+    private fun runDirectDiagnose() {
+        if (directBusy) {
+            Toast.makeText(this, "诊断进行中，稍等…", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val base = directBaseUrl()
+        if (base == null) {
+            Toast.makeText(this, "当前线路未配置，先在模型 API 里配好线路", Toast.LENGTH_LONG).show()
+            return
+        }
+        directBusy = true
+        if (::directDiagSubtitle.isInitialized) directDiagSubtitle.text = "诊断中…"
+        Thread {
+            val d = try {
+                CloudflareOptDns.diagnose(base, ApiConfig.apiKey())
+            } catch (e: Exception) {
+                android.util.Log.w("Settings", "直连诊断失败: ${e.message}")
+                null
+            }
+            runOnUiThread {
+                directBusy = false
+                if (d == null) {
+                    lastDirectDiag = "诊断失败，请重试"
+                    Toast.makeText(this, "诊断失败，请检查网络后重试", Toast.LENGTH_LONG).show()
+                } else {
+                    val sb = StringBuilder()
+                    sb.append(if (d.modelsOk) "直连成功" else "直连失败")
+                    if (d.directUsed) sb.append(" · 命中优选 IP ${d.dialedIp ?: ""}")
+                    else sb.append(" · 未走优选 IP（系统 DNS）")
+                    if (d.traceOk) {
+                        sb.append("\n节点 ${d.traceColo ?: "?"} · 出口 ${d.traceClientIp ?: "?"}")
+                    }
+                    sb.append("\n/v1/models ${if (d.modelsOk) "200" else "失败"} · 耗时 ${d.modelsMs}ms")
+                    lastDirectDiag = sb.toString().replace("\n", " | ")
+                    showDirectResultDialog(sb.toString())
+                }
+                refreshDirectSubtitles()
+            }
+        }.start()
+    }
+
+    private fun showDirectResultDialog(text: String) {
+        val (dlg, box) = Ui.dialog(this, "直连诊断")
+        box.addView(Ui.dialogText(this, text))
+        box.addView(buttonRow(dlg, "知道了") { dlg.dismiss() })
+        dlg.show()
+    }
+
+    /** 批量导入优选 IP：粘贴后逐个探测，只留能回 200 的进池子 */
+    private fun showImportIpsDialog() {
+        val ctx = this@SettingsActivity
+        val (dlg, box) = Ui.dialog(ctx, "批量导入优选 IP")
+        box.addView(Ui.dialogText(ctx, "把 CloudflareSpeedTest 筛出的 IP 粘贴进来，一行一个。\n导入后会自动逐个探测，只留能用的进池子。"))
+        val et = EditText(ctx).apply {
+            hint = "1.2.3.4\n5.6.7.8"
+            textSize = 14f
+            minLines = 4
+            gravity = Gravity.TOP
+        }
+        box.addView(et, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) })
+        box.addView(buttonRow(dlg, "导入并探测") {
+            val ips = CloudflareOptDns.parseImportedIps(et.text.toString())
+            dlg.dismiss()
+            if (ips.isEmpty()) {
+                Toast.makeText(ctx, "没识别到合法 IP，一行一个，如 1.2.3.4", Toast.LENGTH_LONG).show()
+                return@buttonRow
+            }
+            importIpsWithProbe(ips)
+        })
+        dlg.show()
+    }
+
+    private fun importIpsWithProbe(ips: List<String>) {
+        if (directBusy) {
+            Toast.makeText(this, "正忙，稍等…", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val base = directBaseUrl()
+        if (base == null) {
+            Toast.makeText(this, "当前线路未配置，先在模型 API 里配好线路", Toast.LENGTH_LONG).show()
+            return
+        }
+        directBusy = true
+        Toast.makeText(this, "正在逐个探测 ${ips.size} 个 IP…", Toast.LENGTH_SHORT).show()
+        Thread {
+            val scored = try {
+                CloudflareOptDns.probeIps(ips, base, ApiConfig.apiKey())
+            } catch (e: Exception) {
+                android.util.Log.w("Settings", "导入探测失败: ${e.message}")
+                emptyList()
+            }
+            if (scored.isNotEmpty()) {
+                CloudflareOptDns.updateIpPool(scored)
+            }
+            runOnUiThread {
+                directBusy = false
+                refreshDirectSubtitles()
+                val msg = if (scored.isEmpty()) "导入的 IP 都没通过探测（不通或不回 200），池子未变"
+                else "已导入 ${scored.size} 个可用 IP，最快 ${scored.first().latencyMs}ms"
+                Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+            }
+        }.start()
     }
 
     private fun settingsItem(title: String, subtitle: String, iconRes: Int, seed: Int, onClick: () -> Unit, subRef: ((TextView) -> Unit)? = null): LinearLayout {

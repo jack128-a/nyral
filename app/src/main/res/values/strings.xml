@@ -794,6 +794,10 @@
     <!-- 后台任务通知 -->
     <string name="ts_channel_name">任务执行中</string>
     <string name="ts_channel_desc">AI 处理任务期间的前台通知，防止进程被系统回收</string>
+    <!-- 流式生成保活通知（v8） -->
+    <string name="sk_channel_name">模型回复接收中</string>
+    <string name="sk_channel_desc">AI 生成回复期间的前台通知，防止息屏断网</string>
+    <string name="sk_content">正在接收模型回复</string>
     <string name="ts_running">任务执行中…</string>
     <string name="ts_content">AI 正在后台处理任务，请勿强制停止</string>
     <string name="ts_short_text">任务中</string>
