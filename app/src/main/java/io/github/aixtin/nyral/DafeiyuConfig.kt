@@ -3,6 +3,7 @@ package io.github.aixtin.nyral
 import android.content.Context
 import android.util.Base64
 import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * 扩展线路预设（三号、四号及以后）：仅由 DAFEIYU_EXTRA_NODES 的 JSON 数组解析而来，
@@ -77,17 +78,22 @@ object DafeiyuConfig {
             val array = JSONArray(json)
             buildList {
                 for (i in 0 until array.length()) {
-                    val obj = array.optJSONObject(i) ?: continue
-                    val id = obj.optString("id").trim()
-                    val name = obj.optString("name").trim()
-                    val baseUrl = normalizeV1BaseUrl(obj.optString("baseUrl"))
-                    val modelId = obj.optString("modelId").trim()
-                    val apiKey = obj.optString("apiKey")
-                    if (listOf(id, name, baseUrl, modelId, apiKey).any { it.isBlank() }) continue
-                    add(NodePreset(id = id, name = name, baseUrl = baseUrl, modelId = modelId, apiKey = apiKey))
+                    val preset = array.optJSONObject(i)?.let { parseSingleNode(it) } ?: continue
+                    add(preset)
                 }
             }
         }.getOrElse { emptyList() }
+    }
+
+    /** 解析单个扩展线路：任一必填字段缺失或空白即返回 null（调用方跳过该条目）。 */
+    private fun parseSingleNode(obj: JSONObject): NodePreset? {
+        val id = obj.optString("id").trim()
+        val name = obj.optString("name").trim()
+        val baseUrl = normalizeV1BaseUrl(obj.optString("baseUrl"))
+        val modelId = obj.optString("modelId").trim()
+        val apiKey = obj.optString("apiKey")
+        if (listOf(id, name, baseUrl, modelId, apiKey).any { it.isBlank() }) return null
+        return NodePreset(id = id, name = name, baseUrl = baseUrl, modelId = modelId, apiKey = apiKey)
     }
 
     // ============ 2. 工具白名单 ============
